@@ -1,3 +1,4 @@
+import { Temporal } from 'temporal-polyfill';
 import { BidStatus } from '../../public/model/bidStatus.js';
 
 /**
@@ -11,8 +12,8 @@ export interface BidRecord {
   estimatedDuration: number; // milliseconds
   proposal: string;
   status: BidStatus;
-  createdAt: Date;
-  updatedAt: Date;
-  deletedAt: Date | null;
+  createdAt: Temporal.ZonedDateTime;
+  updatedAt: Temporal.ZonedDateTime;
+  deletedAt: Temporal.ZonedDateTime | null;
 }
 

@@ -3,8 +3,9 @@ import type { Logger } from '@harbor/logger';
 import { NotFoundError } from '@harbor/errors';
 import { getDb, bids, type BidRow } from '../store/index.js';
 import { Bid } from '../../public/model/bid.js';
-import { BidStatus, bidStatusToString, stringToBidStatus } from '../../public/model/bidStatus.js';
+import { BidStatus } from '../../public/model/bidStatus.js';
 import { BidRecord } from '../records/bidRecord.js';
+import { Temporal } from 'temporal-polyfill';
 
 export class BidResource {
   constructor(
@@ -76,10 +77,9 @@ export class BidResource {
   }
 
   async updateStatus(id: string, status: BidStatus): Promise<Bid> {
-    const statusString = bidStatusToString(status);
     const [bidRow] = await this.db
       .update(bids)
-      .set({ status: statusString, updatedAt: new Date() })
+      .set({ status, updatedAt: Temporal.Now.zonedDateTimeISO() })
       .where(eq(bids.id, id))
       .returning();
 
@@ -92,9 +92,10 @@ export class BidResource {
   }
 
   async rejectOtherBids(askId: string, _acceptedBidId: string): Promise<void> {
+    // TODO There should be a more transactional method that picks the winning bid and then rejects the others, again, TRANSACTIONALLY
     await this.db
       .update(bids)
-      .set({ status: 'REJECTED', updatedAt: new Date() })
+      .set({ status: 'REJECTED', updatedAt: Temporal.Now.zonedDateTimeISO() })
       .where(
         and(
           eq(bids.askId, askId),
@@ -112,10 +113,10 @@ export class BidResource {
       proposedPrice: row.proposedPrice ?? 0,
       estimatedDuration: row.estimatedDuration ?? 0,
       proposal: row.proposal,
-      status: stringToBidStatus(row.status),
+      status: row.status as BidStatus,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
-      deletedAt: row.deletedAt ?? null,
+      deletedAt: row.deletedAt,
     };
   }
 

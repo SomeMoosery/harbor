@@ -1,4 +1,6 @@
-import { pgTable, text, timestamp, jsonb, uuid, real, integer } from 'drizzle-orm/pg-core';
+import { pgTable, text, jsonb, uuid, real, integer } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
+import { temporalTimestamp, temporalTimestampNullable } from '@harbor/db/temporal';
 
 export const asks = pgTable('asks', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -12,9 +14,9 @@ export const asks = pgTable('asks', {
   status: text('status', { enum: ['OPEN', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED'] })
     .notNull()
     .default('OPEN'),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-  updatedAt: timestamp('updated_at').notNull().defaultNow(),
-  deletedAt: timestamp('deleted_at'),
+  createdAt: temporalTimestamp('created_at').notNull().default(sql`NOW()`),
+  updatedAt: temporalTimestamp('updated_at').notNull().default(sql`NOW()`),
+  deletedAt: temporalTimestampNullable('deleted_at'),
 });
 
 export const bids = pgTable('bids', {
@@ -29,9 +31,9 @@ export const bids = pgTable('bids', {
   status: text('status', { enum: ['PENDING', 'ACCEPTED', 'REJECTED'] })
     .notNull()
     .default('PENDING'),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-  updatedAt: timestamp('updated_at').notNull().defaultNow(),
-  deletedAt: timestamp('deleted_at'),
+  createdAt: temporalTimestamp('created_at').notNull().default(sql`NOW()`),
+  updatedAt: temporalTimestamp('updated_at').notNull().default(sql`NOW()`),
+  deletedAt: temporalTimestampNullable('deleted_at'),
 });
 
 export type AskRow = typeof asks.$inferSelect;

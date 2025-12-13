@@ -1,6 +1,1 @@
-export enum ContractStatus {
-    ACTIVE,
-    DELIVERED,
-    COMPLETED,
-    REFUNDED
-}
+export type ContractStatus = 'ACTIVE' | 'DELIVERED' | 'COMPLETED' | 'REFUNDED';
