@@ -1,0 +1,13 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "outDir": "./dist",
+    "rootDir": "./src"
+  },
+  "references": [
+    { "path": "../../libs/config" },
+    { "path": "../../libs/logger" },
+    { "path": "../../libs/errors" }
+  ],
+  "include": ["src/**/*"]
+}
