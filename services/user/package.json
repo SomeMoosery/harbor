@@ -1,5 +1,5 @@
 {
-  "name": "@harbor/tendering",
+  "name": "@harbor/user",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -20,7 +20,6 @@
     "@harbor/db": "workspace:*",
     "@harbor/errors": "workspace:*",
     "@harbor/logger": "workspace:*",
-    "@harbor/user": "workspace:*",
     "@hono/node-server": "^1.13.7",
     "@hono/zod-validator": "^0.4.1",
     "drizzle-orm": "^0.36.4",

@@ -6,9 +6,9 @@
   },
   "references": [
     { "path": "../../libs/config" },
+    { "path": "../../libs/db" },
     { "path": "../../libs/logger" },
-    { "path": "../../libs/errors" },
-    { "path": "../user" }
+    { "path": "../../libs/errors" }
   ],
   "include": ["src/**/*"]
 }

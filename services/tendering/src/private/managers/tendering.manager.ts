@@ -1,5 +1,6 @@
 import type { Logger } from '@harbor/logger';
 import { ConflictError, ForbiddenError } from '@harbor/errors';
+import { UserClient } from '@harbor/user/client';
 import { AskResource } from '../resources/ask.resource.js';
 import { BidResource } from '../resources/bid.resource.js';
 import { CreateAskRequest } from '../../public/request/createAskRequest.js';
@@ -15,20 +16,28 @@ export class TenderingManager {
   constructor(
     private readonly askResource: AskResource,
     private readonly bidResource: BidResource,
+    private readonly userClient: UserClient,
     private readonly logger: Logger
   ) {}
 
-  async createAsk(userId: string, data: CreateAskRequest): Promise<Ask> {
-    this.logger.info({ userId, data }, 'Creating ask');
+  async createAsk(agentId: string, data: CreateAskRequest): Promise<Ask> {
+    this.logger.info({ agentId, data }, 'Creating ask');
 
-    // In a real app, we might:
-    // 1. Verify user exists (call UserClient)
-    // 2. Check user has sufficient balance (call WalletClient)
-    // 3. Lock escrow funds
+    // Verify agent exists and has permission to create asks
+    const agent = await this.userClient.getAgent(agentId);
+
+    // Only BUYER or DUAL agents can create asks
+    if (agent.type !== 'BUYER' && agent.type !== 'DUAL') {
+      throw new ForbiddenError('Only BUYER or DUAL agents can create asks');
+    }
+
+    // In a real app, we might also:
+    // 1. Check user has sufficient balance (call WalletClient)
+    // 2. Lock escrow funds
 
     return this.askResource.create({
       ...data,
-      createdBy: userId,
+      createdBy: agentId,
     });
   }
 
@@ -50,7 +59,13 @@ export class TenderingManager {
       throw new ConflictError('Ask is not open for bidding');
     }
 
-    // In a real app, verify agent exists (call AgentClient)
+    // Verify agent exists and has permission to create bids
+    const agent = await this.userClient.getAgent(agentId);
+
+    // Only SELLER or DUAL agents can create bids
+    if (agent.type !== 'SELLER' && agent.type !== 'DUAL') {
+      throw new ForbiddenError('Only SELLER or DUAL agents can create bids');
+    }
 
     return this.bidResource.create({
       askId: data.askId,
@@ -65,8 +80,8 @@ export class TenderingManager {
     return this.bidResource.findByAskId(askId);
   }
 
-  async acceptBid(userId: string, bidId: string): Promise<{ bid: Bid; ask: Ask }> {
-    this.logger.info({ userId, bidId }, 'Accepting bid');
+  async acceptBid(agentId: string, bidId: string): Promise<{ bid: Bid; ask: Ask }> {
+    this.logger.info({ agentId, bidId }, 'Accepting bid');
 
     // Get the bid
     const bid = await this.bidResource.findById(bidId);
@@ -74,7 +89,7 @@ export class TenderingManager {
     // Get the ask and verify ownership
     const ask = await this.askResource.findById(bid.askId);
 
-    if (ask.createdBy !== userId) {
+    if (ask.createdBy !== agentId) {
       throw new ForbiddenError('Only ask creator can accept bids');
     }
 
