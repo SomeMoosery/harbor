@@ -1,9 +1,8 @@
 import { z } from 'zod';
-import { BidStatus } from '../model/bidStatus.js';
+import { bidStatusValues } from '../model/bidStatus';
 
 /**
  * Zod schema for Bid model
- * Note: Dates come as ISO strings from JSON, so we parse them
  */
 export const bidSchema = z.object({
   id: z.string().uuid(),
@@ -12,7 +11,7 @@ export const bidSchema = z.object({
   proposedPrice: z.number(),
   estimatedDuration: z.number(),
   proposal: z.string(),
-  status: z.nativeEnum(BidStatus),
+  status: z.enum(bidStatusValues),
 });
 
 export type BidSchema = z.infer<typeof bidSchema>;

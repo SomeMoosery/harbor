@@ -1,9 +1,8 @@
 import { z } from 'zod';
-import { AskStatus } from '../model/askStatus.js';
+import { askStatusValues } from '../model/askStatus';
 
 /**
  * Zod schema for Ask model
- * Note: Dates come as ISO strings from JSON, so we parse them
  */
 export const askSchema = z.object({
   id: z.string().uuid(),
@@ -14,7 +13,7 @@ export const askSchema = z.object({
   maxBudget: z.number(),
   budgetFlexibilityAmount: z.number().optional(),
   createdBy: z.string(),
-  status: z.nativeEnum(AskStatus),
+  status: z.enum(askStatusValues),
 });
 
 export type AskSchema = z.infer<typeof askSchema>;

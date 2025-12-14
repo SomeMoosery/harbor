@@ -3,6 +3,7 @@ import type { Logger } from '@harbor/logger';
 import { HarborError } from '@harbor/errors';
 import { TenderingManager } from '../managers/tendering.manager.js';
 import { CreateAskRequest } from '../../public/request/createAskRequest.js';
+import { askStatusValues, type AskStatus } from '../../public/model/askStatus.js';
 
 /**
  * Controller handles HTTP request/response formatting
@@ -40,8 +41,13 @@ export class TenderingController {
 
   async listAsks(c: Context) {
     try {
-      const status = c.req.query('status');
+      const statusParam = c.req.query('status');
       const createdBy = c.req.query('createdBy');
+
+      // Validate status is a valid AskStatus value
+      const status: AskStatus | undefined = statusParam && askStatusValues.includes(statusParam as AskStatus)
+        ? (statusParam as AskStatus)
+        : undefined;
 
       const asks = await this.manager.listAsks({ status, createdBy });
 
@@ -94,7 +100,17 @@ export class TenderingController {
       return c.json(error.toJSON(), error.statusCode as 200 | 201 | 400 | 401 | 403 | 404 | 409 | 500);
     }
 
-    this.logger.error({ error }, 'Unexpected error');
+    // Extract error details for better logging
+    // TODO should we extract this to a shared lib?
+    const errorDetails = {
+      message: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      name: error instanceof Error ? error.name : undefined,
+      ...(error && typeof error === 'object' && 'code' in error ? { code: (error as any).code } : {}),
+      ...(error && typeof error === 'object' && 'detail' in error ? { detail: (error as any).detail } : {}),
+    };
+
+    this.logger.error({ error: errorDetails }, 'Unexpected error');
     return c.json(
       {
         code: 'INTERNAL_ERROR',

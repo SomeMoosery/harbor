@@ -6,7 +6,6 @@ import { CreateAskRequest } from '../../public/request/createAskRequest.js';
 import { Ask } from '../../public/model/ask.js';
 import { CreateBidRequest } from '../../public/request/createBidRequest.js';
 import { Bid } from '../../public/model/bid.js';
-import { BidStatus } from '../../public/model/bidStatus.js';
 import { AskStatus } from '../../public/model/askStatus.js';
 
 /**
@@ -37,7 +36,7 @@ export class TenderingManager {
     return this.askResource.findById(id);
   }
 
-  async listAsks(filters?: { status?: string; createdBy?: string }): Promise<Ask[]> {
+  async listAsks(filters?: { status?: AskStatus; createdBy?: string }): Promise<Ask[]> {
     return this.askResource.findAll(filters);
   }
 
@@ -47,7 +46,7 @@ export class TenderingManager {
     // Verify ask exists and is open
     const ask = await this.askResource.findById(data.askId);
 
-    if (ask.status !== AskStatus.OPEN) {
+    if (ask.status !== 'OPEN') {
       throw new ConflictError('Ask is not open for bidding');
     }
 
@@ -79,22 +78,22 @@ export class TenderingManager {
       throw new ForbiddenError('Only ask creator can accept bids');
     }
 
-    if (ask.status !== AskStatus.OPEN) {
+    if (ask.status !== 'OPEN') {
       throw new ConflictError('Ask is not open');
     }
 
-    if (bid.status !== BidStatus.PENDING) {
+    if (bid.status !== 'PENDING') {
       throw new ConflictError('Bid is not pending');
     }
 
     // Accept the bid
-    const acceptedBid = await this.bidResource.updateStatus(bidId, BidStatus.ACCEPTED);
+    const acceptedBid = await this.bidResource.updateStatus(bidId, 'ACCEPTED');
 
     // Reject all other bids for this ask
     await this.bidResource.rejectOtherBids(bid.askId, bidId);
 
     // Update ask status to in_progress
-    const updatedAsk = await this.askResource.updateStatus(bid.askId, AskStatus.IN_PROGRESS);
+    const updatedAsk = await this.askResource.updateStatus(bid.askId, 'IN_PROGRESS');
 
     // In a real app:
     // 1. Lock escrow funds (call EscrowClient)

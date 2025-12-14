@@ -4,7 +4,8 @@ import { NotFoundError } from '@harbor/errors';
 import { AskRow, asks, getDb } from '../store/index.js';
 import { Ask } from '../../public/model/ask.js';
 import { AskRecord } from '../records/askRecord.js';
-import { AskStatus, askStatusToString, stringToAskStatus } from '../../public/model/askStatus.js';
+import { AskStatus } from '../../public/model/askStatus.js';
+import { Temporal } from 'temporal-polyfill';
 
 export class AskResource {
   constructor(
@@ -54,11 +55,11 @@ export class AskResource {
     return this.recordToAsk(record);
   }
 
-  async findAll(filters?: { status?: string; createdBy?: string }): Promise<Ask[]> {
+  async findAll(filters?: { status?: AskStatus; createdBy?: string }): Promise<Ask[]> {
     const conditions = [isNull(asks.deletedAt)];
 
     if (filters?.status) {
-      conditions.push(eq(asks.status, filters.status as 'OPEN' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED'));
+      conditions.push(eq(asks.status, filters.status));
     }
 
     if (filters?.createdBy) {
@@ -77,10 +78,9 @@ export class AskResource {
   }
 
   async updateStatus(id: string, status: AskStatus): Promise<Ask> {
-    const statusString = askStatusToString(status);
     const [askRow] = await this.db
       .update(asks)
-      .set({ status: statusString, updatedAt: new Date() })
+      .set({ status, updatedAt: Temporal.Now.zonedDateTimeISO() })
       .where(eq(asks.id, id))
       .returning();
 
@@ -102,10 +102,10 @@ export class AskResource {
       maxBudget: row.maxBudget ?? 0,
       budgetFlexibilityAmount: row.budgetFlexibilityAmount,
       createdBy: row.createdBy,
-      status: stringToAskStatus(row.status),
+      status: row.status as AskStatus,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
-      deletedAt: row.deletedAt ?? null,
+      deletedAt: row.deletedAt,
     };
   }
 

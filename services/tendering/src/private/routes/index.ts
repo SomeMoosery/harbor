@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import { zValidator } from '@hono/zod-validator';
 import type { Logger } from '@harbor/logger';
+import type { Environment } from '@harbor/config';
 import { getDb } from '../store/index.js';
 import { AskResource } from '../resources/ask.resource.js';
 import { BidResource } from '../resources/bid.resource.js';
@@ -9,9 +10,9 @@ import { TenderingController } from '../controllers/tendering.controller.js';
 import { acceptBidSchema, createAskSchema, createBidSchema } from '../validators/ask.validator.js';
 import { handleError } from '../utils/errorHandler.js';
 
-export function createRoutes(connectionString: string, logger: Logger) {
+export function createRoutes(env: Environment, connectionString: string, logger: Logger) {
   const app = new Hono();
-  const db = getDb(connectionString);
+  const db = getDb(env, connectionString, logger);
 
   // Initialize layers
   const askResource = new AskResource(db, logger);

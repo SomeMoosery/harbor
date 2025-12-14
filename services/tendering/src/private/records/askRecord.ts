@@ -1,3 +1,4 @@
+import { Temporal } from 'temporal-polyfill';
 import { AskStatus } from '../../public/model/askStatus.js';
 
 /**
@@ -13,8 +14,8 @@ export interface AskRecord {
   budgetFlexibilityAmount: number | null;
   createdBy: string;
   status: AskStatus;
-  createdAt: Date;
-  updatedAt: Date;
-  deletedAt: Date | null;
+  createdAt: Temporal.ZonedDateTime;
+  updatedAt: Temporal.ZonedDateTime;
+  deletedAt: Temporal.ZonedDateTime | null;
 }
 
