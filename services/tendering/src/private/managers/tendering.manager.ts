@@ -59,7 +59,13 @@ export class TenderingManager {
       throw new ConflictError('Ask is not open for bidding');
     }
 
-    // In a real app, verify agent exists (call AgentClient)
+    // Verify agent exists and has permission to create bids
+    const agent = await this.userClient.getAgent(agentId);
+
+    // Only SELLER or DUAL agents can create bids
+    if (agent.type !== 'SELLER' && agent.type !== 'DUAL') {
+      throw new ForbiddenError('Only SELLER or DUAL agents can create bids');
+    }
 
     return this.bidResource.create({
       askId: data.askId,
