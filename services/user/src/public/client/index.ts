@@ -45,6 +45,17 @@ export class UserClient {
     return userSchema.parse(json);
   }
 
+  async getAgent(id: string): Promise<Agent> {
+    const response = await fetch(`${this.baseUrl}/agents/${id}`);
+
+    if (!response.ok) {
+      throw new Error(`Failed to get agent: ${response.statusText}`);
+    }
+
+    const json = await response.json();
+    return agentSchema.parse(json);
+  }
+
   async createAgent(userId: string, data: CreateAgentRequest): Promise<Agent> {
     const response = await fetch(`${this.baseUrl}/users/${userId}/agents`, {
       method: 'POST',

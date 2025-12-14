@@ -36,6 +36,17 @@ export class UserController {
     }
   }
 
+  async getAgent(c: Context) {
+    try {
+      const id = c.req.param('id');
+      const agent = await this.manager.getAgent(id);
+
+      return c.json(agent);
+    } catch (error) {
+      return handleError(c, error, this.logger);
+    }
+  }
+
   async createAgent(c: Context) {
     try {
       const userId = c.req.param('userId');

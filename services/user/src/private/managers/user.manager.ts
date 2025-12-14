@@ -42,6 +42,10 @@ export class UserManager {
     return this.userResource.findById(id);
   }
 
+  async getAgent(id: string): Promise<Agent> {
+    return this.agentResource.findById(id);
+  }
+
   async createAgent(data: {
     userId: string;
     name: string;

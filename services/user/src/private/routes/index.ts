@@ -37,6 +37,8 @@ export function createRoutes(env: Environment, connectionString: string, logger:
   app.get('/users/:id', (c) => controller.getUser(c));
 
   // Agent routes
+  app.get('/agents/:id', (c) => controller.getAgent(c));
+
   app.post('/users/:userId/agents', zValidator('json', createAgentSchema), async (c) => {
     try {
       const userId = c.req.param('userId');

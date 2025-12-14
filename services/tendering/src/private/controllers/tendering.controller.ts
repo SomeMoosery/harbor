@@ -83,10 +83,10 @@ export class TenderingController {
 
   async acceptBid(c: Context) {
     try {
-      const userId = c.req.header('X-User-Id') ?? 'anonymous';
+      const agentId = c.req.header('X-Agent-Id') ?? 'anonymous';
       const { bidId } = await c.req.json();
 
-      const result = await this.manager.acceptBid(userId, bidId);
+      const result = await this.manager.acceptBid(agentId, bidId);
 
       return c.json(result);
     } catch (error) {

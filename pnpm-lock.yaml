@@ -78,6 +78,9 @@ importers:
       '@harbor/logger':
         specifier: workspace:*
         version: link:../../libs/logger
+      '@harbor/user':
+        specifier: workspace:*
+        version: link:../user
       '@hono/node-server':
         specifier: ^1.13.7
         version: 1.19.7(hono@4.10.8)

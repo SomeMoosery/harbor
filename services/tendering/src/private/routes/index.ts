@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import { zValidator } from '@hono/zod-validator';
 import type { Logger } from '@harbor/logger';
 import type { Environment } from '@harbor/config';
+import { UserClient } from '@harbor/user/client';
 import { getDb } from '../store/index.js';
 import { AskResource } from '../resources/ask.resource.js';
 import { BidResource } from '../resources/bid.resource.js';
@@ -16,9 +17,10 @@ export function createRoutes(env: Environment, connectionString: string, logger:
   const db = getDb(env, connectionString, logger);
 
   // Initialize layers
+  const userClient = new UserClient();
   const askResource = new AskResource(db, logger);
   const bidResource = new BidResource(db, logger);
-  const manager = new TenderingManager(askResource, bidResource, logger);
+  const manager = new TenderingManager(askResource, bidResource, userClient, logger);
   const controller = new TenderingController(manager, logger);
 
   // Health check
@@ -27,9 +29,9 @@ export function createRoutes(env: Environment, connectionString: string, logger:
   // Ask routes
   app.post('/asks', zValidator('json', createAskSchema), async (c) => {
     try {
-      const userId = c.req.header('X-User-Id') ?? 'anonymous';
+      const agentId = c.req.header('X-Agent-Id') ?? 'anonymous';
       const body = c.req.valid('json');
-      const ask = await manager.createAsk(userId, body);
+      const ask = await manager.createAsk(agentId, body);
       return c.json(ask, 201);
     } catch (error) {
       return handleError(c, error, logger);
@@ -54,9 +56,9 @@ export function createRoutes(env: Environment, connectionString: string, logger:
 
   app.post('/bids/accept', zValidator('json', acceptBidSchema), async (c) => {
     try {
-      const userId = c.req.header('X-User-Id') ?? 'anonymous';
+      const agentId = c.req.header('X-Agent-Id') ?? 'anonymous';
       const { bidId } = c.req.valid('json');
-      const result = await manager.acceptBid(userId, bidId);
+      const result = await manager.acceptBid(agentId, bidId);
       return c.json(result);
     } catch (error) {
       return handleError(c, error, logger);
