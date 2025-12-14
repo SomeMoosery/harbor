@@ -125,6 +125,67 @@ importers:
         specifier: ^5.7.2
         version: 5.9.3
 
+  services/user:
+    dependencies:
+      '@harbor/config':
+        specifier: workspace:*
+        version: link:../../libs/config
+      '@harbor/db':
+        specifier: workspace:*
+        version: link:../../libs/db
+      '@harbor/errors':
+        specifier: workspace:*
+        version: link:../../libs/errors
+      '@harbor/logger':
+        specifier: workspace:*
+        version: link:../../libs/logger
+      '@hono/node-server':
+        specifier: ^1.13.7
+        version: 1.19.7(hono@4.10.8)
+      '@hono/zod-validator':
+        specifier: ^0.4.1
+        version: 0.4.3(hono@4.10.8)(zod@3.25.76)
+      drizzle-orm:
+        specifier: ^0.36.4
+        version: 0.36.4(@types/pg@8.16.0)(pg@8.16.3)(postgres@3.4.7)
+      hono:
+        specifier: ^4.6.14
+        version: 4.10.8
+      pg:
+        specifier: ^8.13.1
+        version: 8.16.3
+      pg-mem:
+        specifier: ^3.0.2
+        version: 3.0.5(postgres@3.4.7)
+      postgres:
+        specifier: ^3.4.5
+        version: 3.4.7
+      temporal-polyfill:
+        specifier: ^0.2.5
+        version: 0.2.5
+      zod:
+        specifier: ^3.24.1
+        version: 3.25.76
+    devDependencies:
+      '@types/node':
+        specifier: ^22.10.2
+        version: 22.19.2
+      '@types/pg':
+        specifier: ^8.11.10
+        version: 8.16.0
+      drizzle-kit:
+        specifier: ^0.29.1
+        version: 0.29.1
+      drizzle-pgmem:
+        specifier: ^0.6.2
+        version: 0.6.2
+      tsx:
+        specifier: ^4.19.2
+        version: 4.21.0
+      typescript:
+        specifier: ^5.7.2
+        version: 5.9.3
+
 packages:
 
   '@drizzle-team/brocli@0.10.2':

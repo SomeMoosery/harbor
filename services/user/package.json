@@ -1,0 +1,41 @@
+{
+  "name": "@harbor/user",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./client": "./src/public/client/index.ts",
+    "./types": "./src/public/types/index.ts"
+  },
+  "scripts": {
+    "dev": "tsx watch src/main.ts",
+    "build": "tsc --build",
+    "start": "node dist/main.js",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@harbor/config": "workspace:*",
+    "@harbor/db": "workspace:*",
+    "@harbor/errors": "workspace:*",
+    "@harbor/logger": "workspace:*",
+    "@hono/node-server": "^1.13.7",
+    "@hono/zod-validator": "^0.4.1",
+    "drizzle-orm": "^0.36.4",
+    "hono": "^4.6.14",
+    "pg": "^8.13.1",
+    "pg-mem": "^3.0.2",
+    "postgres": "^3.4.5",
+    "temporal-polyfill": "^0.2.5",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "@types/pg": "^8.11.10",
+    "drizzle-kit": "^0.29.1",
+    "drizzle-pgmem": "^0.6.2",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  }
+}
