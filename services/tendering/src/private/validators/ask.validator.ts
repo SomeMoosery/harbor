@@ -11,14 +11,3 @@ export const createAskSchema = z.object({
   message: 'maxBudget must be greater than or equal to minBudget',
   path: ['maxBudget'],
 });
-
-export const createBidSchema = z.object({
-  askId: z.string().uuid(),
-  proposedPrice: z.number().positive(),
-  estimatedDuration: z.number().positive(), // milliseconds
-  proposal: z.string().min(10),
-});
-
-export const acceptBidSchema = z.object({
-  bidId: z.string().uuid(),
-});

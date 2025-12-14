@@ -1,9 +1,9 @@
 import type { Context } from 'hono';
 import type { Logger } from '@harbor/logger';
-import { HarborError } from '@harbor/errors';
 import { TenderingManager } from '../managers/tendering.manager.js';
 import { CreateAskRequest } from '../../public/request/createAskRequest.js';
 import { askStatusValues, type AskStatus } from '../../public/model/askStatus.js';
+import { handleError } from '../utils/errorHandler.js';
 
 /**
  * Controller handles HTTP request/response formatting
@@ -24,7 +24,7 @@ export class TenderingController {
 
       return c.json(ask, 201);
     } catch (error) {
-      return this.handleError(c, error);
+      return handleError(c, error, this.logger);
     }
   }
 
@@ -35,7 +35,7 @@ export class TenderingController {
 
       return c.json(ask);
     } catch (error) {
-      return this.handleError(c, error);
+      return handleError(c, error, this.logger);
     }
   }
 
@@ -53,7 +53,7 @@ export class TenderingController {
 
       return c.json(asks);
     } catch (error) {
-      return this.handleError(c, error);
+      return handleError(c, error, this.logger);
     }
   }
 
@@ -66,7 +66,7 @@ export class TenderingController {
 
       return c.json(bid, 201);
     } catch (error) {
-      return this.handleError(c, error);
+      return handleError(c, error, this.logger);
     }
   }
 
@@ -77,7 +77,7 @@ export class TenderingController {
 
       return c.json(bids);
     } catch (error) {
-      return this.handleError(c, error);
+      return handleError(c, error, this.logger);
     }
   }
 
@@ -90,33 +90,7 @@ export class TenderingController {
 
       return c.json(result);
     } catch (error) {
-      return this.handleError(c, error);
+      return handleError(c, error, this.logger);
     }
-  }
-
-  private handleError(c: Context, error: unknown) {
-    if (error instanceof HarborError) {
-      this.logger.warn({ error: error.toJSON() }, 'Request error');
-      return c.json(error.toJSON(), error.statusCode as 200 | 201 | 400 | 401 | 403 | 404 | 409 | 500);
-    }
-
-    // Extract error details for better logging
-    // TODO should we extract this to a shared lib?
-    const errorDetails = {
-      message: error instanceof Error ? error.message : String(error),
-      stack: error instanceof Error ? error.stack : undefined,
-      name: error instanceof Error ? error.name : undefined,
-      ...(error && typeof error === 'object' && 'code' in error ? { code: (error as any).code } : {}),
-      ...(error && typeof error === 'object' && 'detail' in error ? { detail: (error as any).detail } : {}),
-    };
-
-    this.logger.error({ error: errorDetails }, 'Unexpected error');
-    return c.json(
-      {
-        code: 'INTERNAL_ERROR',
-        message: 'An unexpected error occurred',
-      },
-      500
-    );
   }
 }
