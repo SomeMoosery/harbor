@@ -7,8 +7,9 @@ import { AskResource } from '../resources/ask.resource.js';
 import { BidResource } from '../resources/bid.resource.js';
 import { TenderingManager } from '../managers/tendering.manager.js';
 import { TenderingController } from '../controllers/tendering.controller.js';
-import { acceptBidSchema, createAskSchema, createBidSchema } from '../validators/ask.validator.js';
+import { createAskSchema } from '../validators/ask.validator.js';
 import { handleError } from '../utils/errorHandler.js';
+import { acceptBidSchema, createBidSchema } from '../validators/bid.validator.js';
 
 export function createRoutes(env: Environment, connectionString: string, logger: Logger) {
   const app = new Hono();

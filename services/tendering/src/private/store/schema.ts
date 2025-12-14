@@ -1,6 +1,7 @@
 import { pgTable, text, jsonb, uuid, real, integer } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 import { temporalTimestamp, temporalTimestampNullable } from '@harbor/db/temporal';
+import { Temporal } from 'temporal-polyfill';
 
 export const asks = pgTable('asks', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -14,8 +15,8 @@ export const asks = pgTable('asks', {
   status: text('status', { enum: ['OPEN', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED'] })
     .notNull()
     .default('OPEN'),
-  createdAt: temporalTimestamp('created_at').notNull().default(sql`NOW()`),
-  updatedAt: temporalTimestamp('updated_at').notNull().default(sql`NOW()`),
+  createdAt: temporalTimestamp('created_at').notNull().default(Temporal.Now.zonedDateTimeISO()),
+  updatedAt: temporalTimestamp('updated_at').notNull().default(Temporal.Now.zonedDateTimeISO()),
   deletedAt: temporalTimestampNullable('deleted_at'),
 });
 
@@ -31,8 +32,8 @@ export const bids = pgTable('bids', {
   status: text('status', { enum: ['PENDING', 'ACCEPTED', 'REJECTED'] })
     .notNull()
     .default('PENDING'),
-  createdAt: temporalTimestamp('created_at').notNull().default(sql`NOW()`),
-  updatedAt: temporalTimestamp('updated_at').notNull().default(sql`NOW()`),
+  createdAt: temporalTimestamp('created_at').notNull().default(Temporal.Now.zonedDateTimeISO()),
+  updatedAt: temporalTimestamp('updated_at').notNull().default(Temporal.Now.zonedDateTimeISO()),
   deletedAt: temporalTimestampNullable('deleted_at'),
 });
 
