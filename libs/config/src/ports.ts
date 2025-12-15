@@ -2,13 +2,11 @@
  * Service port configuration for local development
  */
 export const SERVICE_PORTS = {
-  api: 3000,
-  websocket: 3001,
-  tendering: 3002,
-  agent: 3003,
-  user: 3004,
-  wallet: 3005,
-  escrow: 3006,
+  gateway: 3000,
+  tendering: 3001,
+  user: 3002,
+  wallet: 3003,
+  settlement: 3004,
 } as const;
 
 export type ServiceName = keyof typeof SERVICE_PORTS;
