@@ -1,0 +1,68 @@
+import { drizzle } from 'drizzle-orm/node-postgres';
+import { DataType, newDb } from 'pg-mem';
+import type { Logger } from '@harbor/logger';
+import { applyIntegrationsToPool } from 'drizzle-pgmem';
+import { Temporal } from 'temporal-polyfill';
+import * as schema from './schema.js';
+
+let localDbInstance: ReturnType<typeof drizzle> | null = null;
+
+export function createLocalDb(logger: Logger) {
+  if (localDbInstance) {
+    return localDbInstance;
+  }
+
+  logger.info('Creating in-memory PostgreSQL database (pg-mem)');
+
+  const mem = newDb({
+    autoCreateForeignKeyIndices: true,
+  });
+
+  mem.public.registerFunction({
+    name: 'current_database',
+    returns: DataType.text,
+    implementation: () => 'harbor_settlement_local',
+  });
+
+  mem.public.registerFunction({
+    name: 'version',
+    returns: DataType.text,
+    implementation: () => 'PostgreSQL 14.0 (pg-mem simulation)',
+  });
+
+  mem.public.registerFunction({
+    name: 'gen_random_uuid',
+    returns: DataType.uuid,
+    implementation: () => {
+      return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+        const r = (Math.random() * 16) | 0;
+        const v = c === 'x' ? r : (r & 0x3) | 0x8;
+        return v.toString(16);
+      });
+    },
+  });
+
+  mem.public.registerFunction({
+    name: 'now',
+    returns: DataType.timestamptz,
+    implementation: () => {
+      const now = Temporal.Now.zonedDateTimeISO();
+      return new Date(now.epochMilliseconds);
+    },
+  });
+
+  const { Pool: PgMemPool } = mem.adapters.createPg();
+  const pool = new PgMemPool();
+
+  applyIntegrationsToPool(pool);
+
+  localDbInstance = drizzle(pool, { schema });
+
+  logger.info('In-memory database created successfully');
+
+  return localDbInstance;
+}
+
+export function resetLocalDb() {
+  localDbInstance = null;
+}
