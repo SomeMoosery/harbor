@@ -6,16 +6,21 @@ import { User } from '../../public/model/user.js';
 import { Agent } from '../../public/model/agent.js';
 import { UserType } from '../../public/model/userType.js';
 import { AgentType } from '../../public/model/agentType.js';
+import { WalletClient } from '@harbor/wallet/client';
 
 /**
  * UserManager orchestrates business logic for users and agents
  */
 export class UserManager {
+  private readonly walletClient: WalletClient;
+
   constructor(
     private readonly userResource: UserResource,
     private readonly agentResource: AgentResource,
     private readonly logger: Logger
-  ) {}
+  ) {
+    this.walletClient = new WalletClient();
+  }
 
   async createUser(data: {
     name: string;
@@ -68,7 +73,20 @@ export class UserManager {
     }
 
     try {
-      return await this.agentResource.create(data);
+      const agent = await this.agentResource.create(data);
+
+      // Create wallet for the agent
+      // Note: We're not awaiting this to keep it simple. In a production system,
+      // you might want to use a saga pattern or event-driven architecture
+      // to ensure atomicity.
+      this.walletClient.createWallet({ agentId: agent.id }).catch((error: any) => {
+        this.logger.error(
+          { error, agentId: agent.id },
+          'Failed to create wallet for agent. Wallet will need to be created manually.'
+        );
+      });
+
+      return agent;
     } catch (error) {
       // The unique index on (user_id, name) might also catch this
       if (error instanceof Error && error.message.includes('unique')) {

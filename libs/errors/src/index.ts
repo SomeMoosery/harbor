@@ -102,7 +102,7 @@ export class InsufficientFundsError extends HarborError {
   readonly code = 'INSUFFICIENT_FUNDS';
   readonly statusCode = 400;
 
-  constructor(required: string, available: string) {
+  constructor(required: number, available: number) {
     super('Insufficient funds', { required, available });
   }
 }

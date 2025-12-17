@@ -20,6 +20,7 @@
     "@harbor/db": "workspace:*",
     "@harbor/errors": "workspace:*",
     "@harbor/logger": "workspace:*",
+    "@harbor/settlement": "workspace:*",
     "@harbor/user": "workspace:*",
     "@hono/node-server": "^1.13.7",
     "@hono/zod-validator": "^0.4.1",

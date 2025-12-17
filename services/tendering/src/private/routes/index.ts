@@ -65,5 +65,7 @@ export function createRoutes(env: Environment, connectionString: string, logger:
     }
   });
 
+  app.post('/delivery/submit', (c) => controller.submitDelivery(c));
+
   return app;
 }

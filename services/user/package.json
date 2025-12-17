@@ -20,6 +20,7 @@
     "@harbor/db": "workspace:*",
     "@harbor/errors": "workspace:*",
     "@harbor/logger": "workspace:*",
+    "@harbor/wallet": "workspace:*",
     "@hono/node-server": "^1.13.7",
     "@hono/zod-validator": "^0.4.1",
     "drizzle-orm": "^0.36.4",

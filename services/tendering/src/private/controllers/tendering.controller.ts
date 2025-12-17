@@ -93,4 +93,17 @@ export class TenderingController {
       return handleError(c, error, this.logger);
     }
   }
+
+  async submitDelivery(c: Context) {
+    try {
+      const agentId = c.req.header('X-Agent-Id') ?? 'anonymous';
+      const { bidId, deliveryProof } = await c.req.json();
+
+      const result = await this.manager.submitDelivery(agentId, bidId, deliveryProof);
+
+      return c.json(result);
+    } catch (error) {
+      return handleError(c, error, this.logger);
+    }
+  }
 }

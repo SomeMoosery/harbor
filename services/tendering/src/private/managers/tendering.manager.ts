@@ -1,6 +1,7 @@
 import type { Logger } from '@harbor/logger';
 import { ConflictError, ForbiddenError } from '@harbor/errors';
 import { UserClient } from '@harbor/user/client';
+import { SettlementClient } from '@harbor/settlement/client';
 import { AskResource } from '../resources/ask.resource.js';
 import { BidResource } from '../resources/bid.resource.js';
 import { CreateAskRequest } from '../../public/request/createAskRequest.js';
@@ -13,12 +14,16 @@ import { AskStatus } from '../../public/model/askStatus.js';
  * TenderingManager orchestrates business logic across asks and bids
  */
 export class TenderingManager {
+  private readonly settlementClient: SettlementClient;
+
   constructor(
     private readonly askResource: AskResource,
     private readonly bidResource: BidResource,
     private readonly userClient: UserClient,
     private readonly logger: Logger
-  ) {}
+  ) {
+    this.settlementClient = new SettlementClient();
+  }
 
   async createAsk(agentId: string, data: CreateAskRequest): Promise<Ask> {
     this.logger.info({ agentId, data }, 'Creating ask');
@@ -102,6 +107,7 @@ export class TenderingManager {
     }
 
     // Accept the bid
+    // TODO "updateStatus" and "rejectOtherBids" and the next "updateStatus" should all be transactional
     const acceptedBid = await this.bidResource.updateStatus(bidId, 'ACCEPTED');
 
     // Reject all other bids for this ask
@@ -110,13 +116,82 @@ export class TenderingManager {
     // Update ask status to in_progress
     const updatedAsk = await this.askResource.updateStatus(bid.askId, 'IN_PROGRESS');
 
-    // In a real app:
-    // 1. Lock escrow funds (call EscrowClient)
-    // 2. Create contract (call separate service)
-    // 3. Notify agent via WebSocket
+    // Lock escrow funds
+    // TODO this should somehow be abstracted away to "move funds" once we have a clearer picture of 
+    //  how the credit systems will take place (eg does the Buyer extend credit? Third party?)
+    try {
+      await this.settlementClient.lockEscrow({
+        askId: ask.id,
+        bidId: bid.id,
+        buyerAgentId: ask.createdBy,
+        amount: bid.proposedPrice,
+        currency: 'USDC',
+      });
+
+      this.logger.info({ bidId, askId: ask.id }, 'Escrow funds locked successfully');
+    } catch (error) {
+      this.logger.error({ error, bidId, askId: ask.id }, 'Failed to lock escrow funds');
+      throw error;
+    }
 
     return {
       bid: acceptedBid,
+      ask: updatedAsk,
+    };
+  }
+
+  async submitDelivery(
+    agentId: string,
+    bidId: string,
+    deliveryProof?: Record<string, unknown>
+  ): Promise<{ bid: Bid; ask: Ask }> {
+    this.logger.info({ agentId, bidId }, 'Submitting delivery');
+
+    // Get the bid
+    const bid = await this.bidResource.findById(bidId);
+
+    // Verify the agent is the bid creator (seller)
+    if (bid.agentId !== agentId) {
+      throw new ForbiddenError('Only bid creator can submit delivery');
+    }
+
+    if (bid.status !== 'ACCEPTED') {
+      throw new ConflictError('Bid must be accepted before delivery can be submitted');
+    }
+
+    // Get the ask
+    const ask = await this.askResource.findById(bid.askId);
+
+    if (ask.status !== 'IN_PROGRESS') {
+      throw new ConflictError('Ask must be in progress');
+    }
+
+    // Get escrow lock for this bid
+    const escrowLock = await this.settlementClient.getEscrowLockByBidId(bidId);
+
+    if (!escrowLock) {
+      throw new Error('No escrow lock found for this bid');
+    }
+
+    // Release escrow funds to seller
+    try {
+      await this.settlementClient.releaseEscrow({
+        escrowLockId: escrowLock.id,
+        sellerAgentId: agentId,
+        deliveryProof,
+      });
+
+      this.logger.info({ bidId, escrowLockId: escrowLock.id }, 'Escrow funds released successfully');
+    } catch (error) {
+      this.logger.error({ error, bidId }, 'Failed to release escrow funds');
+      throw error;
+    }
+
+    // Update ask status to completed
+    const updatedAsk = await this.askResource.updateStatus(ask.id, 'COMPLETED');
+
+    return {
+      bid,
       ask: updatedAsk,
     };
   }

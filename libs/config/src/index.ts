@@ -20,6 +20,20 @@ export interface Config {
     apiKey: string;
     entitySecret: string;
   };
+
+  stripe: {
+    apiKey: string;
+  };
+
+  fees: {
+    buyerPercentage: number; // e.g., 0.025 for 2.5%
+    sellerPercentage: number; // e.g., 0.025 for 2.5%
+  };
+
+  wallets: {
+    escrowWalletId: string; // Platform omnibus wallet for holding escrow funds
+    revenueWalletId: string; // Platform wallet for collecting fees
+  };
 }
 
 export function createConfig(serviceName: string, defaultPort: number): Config {
@@ -39,6 +53,20 @@ export function createConfig(serviceName: string, defaultPort: number): Config {
     circle: {
       apiKey: process.env.CIRCLE_API_KEY ?? '',
       entitySecret: process.env.CIRCLE_ENTITY_SECRET ?? '',
+    },
+
+    stripe: {
+      apiKey: process.env.STRIPE_API_KEY ?? '',
+    },
+
+    fees: {
+      buyerPercentage: parseFloat(process.env.FEE_BUYER_PERCENTAGE ?? '0.025'), // Default 2.5%
+      sellerPercentage: parseFloat(process.env.FEE_SELLER_PERCENTAGE ?? '0.025'), // Default 2.5%
+    },
+
+    wallets: {
+      escrowWalletId: process.env.ESCROW_WALLET_ID ?? '',
+      revenueWalletId: process.env.REVENUE_WALLET_ID ?? '',
     },
   };
 }
