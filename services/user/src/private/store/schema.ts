@@ -1,9 +1,10 @@
 import { pgTable, text, jsonb, uuid } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 import { temporalTimestamp, temporalTimestampNullable } from '@harbor/db/temporal';
 import { Temporal } from 'temporal-polyfill';
 
 export const users = pgTable('users', {
-  id: uuid('id').primaryKey().defaultRandom(),
+  id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
   name: text('name').notNull(),
   type: text('type', { enum: ['BUSINESS', 'PERSONAL'] }).notNull(),
   email: text('email').notNull().unique(),
@@ -14,7 +15,7 @@ export const users = pgTable('users', {
 });
 
 export const agents = pgTable('agents', {
-  id: uuid('id').primaryKey().defaultRandom(),
+  id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
   userId: uuid('user_id')
     .notNull()
     .references(() => users.id),

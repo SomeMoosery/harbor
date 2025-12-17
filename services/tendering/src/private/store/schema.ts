@@ -4,7 +4,7 @@ import { temporalTimestamp, temporalTimestampNullable } from '@harbor/db/tempora
 import { Temporal } from 'temporal-polyfill';
 
 export const asks = pgTable('asks', {
-  id: uuid('id').primaryKey().defaultRandom(),
+  id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
   title: text('title').notNull(),
   description: text('description').notNull(),
   requirements: jsonb('requirements').notNull().$type<Record<string, unknown>>(),
@@ -21,7 +21,7 @@ export const asks = pgTable('asks', {
 });
 
 export const bids = pgTable('bids', {
-  id: uuid('id').primaryKey().defaultRandom(),
+  id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
   askId: uuid('ask_id')
     .notNull()
     .references(() => asks.id),
