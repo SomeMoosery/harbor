@@ -1,4 +1,6 @@
 packages:
+  - 'apps/*'
+  - 'examples/*'
   - 'services/*'
   - 'libs/*'
   - 'packages/*'

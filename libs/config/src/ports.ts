@@ -3,6 +3,7 @@
  */
 export const SERVICE_PORTS = {
   gateway: 3000,
+  gatewayWs: 3005, // WebSocket server for gateway
   tendering: 3001,
   user: 3002,
   wallet: 3003,

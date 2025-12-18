@@ -85,6 +85,20 @@ async function createSchemaForLocalDb(
       )
     `);
 
+    // Create API keys table
+    logger.debug('Creating api_keys table');
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS api_keys (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id UUID NOT NULL REFERENCES users(id),
+        key TEXT NOT NULL UNIQUE,
+        name TEXT,
+        last_used_at TIMESTAMPTZ,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        deleted_at TIMESTAMPTZ
+      )
+    `);
+
     // Create indexes for better query performance
     logger.debug('Creating indexes');
     await db.execute(sql`
@@ -102,6 +116,14 @@ async function createSchemaForLocalDb(
     // Create unique index to prevent duplicate agent names per user
     await db.execute(sql`
       CREATE UNIQUE INDEX IF NOT EXISTS idx_agents_user_id_name ON agents(user_id, name) WHERE deleted_at IS NULL
+    `);
+
+    await db.execute(sql`
+      CREATE INDEX IF NOT EXISTS idx_api_keys_user_id ON api_keys(user_id)
+    `);
+
+    await db.execute(sql`
+      CREATE INDEX IF NOT EXISTS idx_api_keys_key ON api_keys(key) WHERE deleted_at IS NULL
     `);
 
     logger.info('Database schema created successfully');
