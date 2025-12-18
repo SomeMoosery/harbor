@@ -103,7 +103,7 @@ export class TransactionResource {
       currency: row.currency,
       status: row.status as TransactionStatus,
       externalId: row.externalId || undefined,
-      metadata: row.metadata as Record<string, unknown> | undefined,
+      metadata: row.metadata ? (row.metadata as Record<string, unknown>) : undefined,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
     };

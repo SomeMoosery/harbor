@@ -13,7 +13,6 @@ import { StripePaymentProvider } from '../providers/stripePaymentProvider.js';
 import { MockWalletProvider } from '../providers/mockWalletProvider.js';
 import { MockPaymentProvider } from '../providers/mockPaymentProvider.js';
 import { createWalletSchema, depositSchema, transferSchema } from '../validators/wallet.validator.js';
-import { handleError } from '../utils/errorHandler.js';
 
 export function createRoutes(env: Environment, connectionString: string, logger: Logger, config: any) {
   const app = new Hono();
@@ -60,8 +59,11 @@ export function createRoutes(env: Environment, connectionString: string, logger:
     return controller.createWallet(c);
   });
 
-  app.get('/wallets/:id', (c) => controller.getWallet(c));
+  // More specific routes must come before generic :id routes
   app.get('/wallets/agent/:agentId', (c) => controller.getWalletByAgentId(c));
+  app.get('/wallets/agent/:agentId/balance', (c) => controller.getBalanceByAgentId(c));
+
+  app.get('/wallets/:id', (c) => controller.getWallet(c));
   app.get('/wallets/:id/balance', (c) => controller.getBalance(c));
   app.get('/wallets/:id/transactions', (c) => controller.getTransactions(c));
 

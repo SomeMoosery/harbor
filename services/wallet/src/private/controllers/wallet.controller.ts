@@ -59,6 +59,18 @@ export class WalletController {
     }
   }
 
+  async getBalanceByAgentId(c: Context) {
+    try {
+      const agentId = c.req.param('agentId');
+      const wallet = await this.manager.getWalletByAgentId(agentId);
+      const balance = await this.manager.getBalance(wallet.id);
+
+      return c.json(balance);
+    } catch (error) {
+      return handleError(c, error, this.logger);
+    }
+  }
+
   async deposit(c: Context) {
     try {
       const body: DepositRequest = await c.req.json();

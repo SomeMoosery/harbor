@@ -31,8 +31,8 @@ export interface Config {
   };
 
   wallets: {
-    escrowWalletId: string; // Platform omnibus wallet for holding escrow funds
-    revenueWalletId: string; // Platform wallet for collecting fees
+    escrowAgentId: string; // Platform agent ID for escrow wallet
+    revenueAgentId: string; // Platform agent ID for revenue wallet
   };
 }
 
@@ -65,8 +65,10 @@ export function createConfig(serviceName: string, defaultPort: number): Config {
     },
 
     wallets: {
-      escrowWalletId: process.env.ESCROW_WALLET_ID ?? '',
-      revenueWalletId: process.env.REVENUE_WALLET_ID ?? '',
+      // Well-known UUIDs for platform agents
+      // These are deterministic so platform wallets remain consistent across restarts
+      escrowAgentId: process.env.ESCROW_AGENT_ID ?? '00000000-0000-0000-0000-000000000001',
+      revenueAgentId: process.env.REVENUE_AGENT_ID ?? '00000000-0000-0000-0000-000000000002',
     },
   };
 }

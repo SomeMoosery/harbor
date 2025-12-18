@@ -4,6 +4,7 @@ import { createLogger } from '@harbor/logger';
 import { createRoutes } from './private/routes/index.js';
 import { runMigrations } from './private/store/migrate.js';
 import { closeDb } from './private/store/index.js';
+import { ensurePlatformWallets } from './private/utils/ensurePlatformWallets.js';
 
 const SERVICE_NAME = 'settlement';
 const config = createConfig(SERVICE_NAME, SERVICE_PORTS.settlement);
@@ -25,6 +26,14 @@ async function startServer() {
     }
   } else {
     logger.info('Auto-migration disabled. Run migrations manually with: pnpm db:migrate');
+  }
+
+  // Ensure platform wallets exist for escrow and revenue collection
+  try {
+    await ensurePlatformWallets(config, logger);
+  } catch (error) {
+    logger.fatal({ error }, 'Failed to ensure platform wallets exist, shutting down');
+    process.exit(1);
   }
 
   const app = createRoutes(config.env, config.database.url, logger, config);

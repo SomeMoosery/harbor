@@ -586,13 +586,13 @@ curl http://localhost:3003/wallets/<SELLER_WALLET_ID>/balance
 ### 7c. Verify Platform Revenue Wallet
 
 ```bash
-curl http://localhost:3003/wallets/agent/platform-revenue-wallet/balance
+curl http://localhost:3003/wallets/agent/00000000-0000-0000-0000-000000000002/balance
 ```
 
 **Expected Response:**
 ```json
 {
-  "walletId": "platform-revenue-wallet",
+  "walletId": "<REVENUE_WALLET_ID>",
   "available": {
     "amount": 22.50,
     "currency": "USDC"
@@ -603,17 +603,19 @@ curl http://localhost:3003/wallets/agent/platform-revenue-wallet/balance
   }
 }
 ```
+
+**Note:** The platform collects 22.50 USDC total fees (11.25 from buyer + 11.25 from seller).
 
 ### 7d. Verify Escrow Wallet is Empty
 
 ```bash
-curl http://localhost:3003/wallets/agent/platform-escrow-wallet/balance
+curl http://localhost:3003/wallets/agent/00000000-0000-0000-0000-000000000001/balance
 ```
 
 **Expected Response:**
 ```json
 {
-  "walletId": "platform-escrow-wallet",
+  "walletId": "<ESCROW_WALLET_ID>",
   "available": {
     "amount": 0.00,
     "currency": "USDC"
@@ -624,6 +626,8 @@ curl http://localhost:3003/wallets/agent/platform-escrow-wallet/balance
   }
 }
 ```
+
+**Note:** The escrow wallet should be empty after releasing funds to the seller and platform revenue wallets.
 
 ---
 
