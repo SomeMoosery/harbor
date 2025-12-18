@@ -259,9 +259,9 @@ curl -X POST http://localhost:3003/deposit \
 ```
 
 **What Happened:**
-- Mock Stripe payment processed ($1000 USD)
-- Ledger entry created tracking Stripe → Circle reconciliation
-- Mock Circle USDC minted
+- Mock payment processed ($1000 USD → 1000 USDC)
+- Ledger entry created tracking external → internal reconciliation
+- Mock USDC minted
 - Transaction recorded
 - Ledger entry reconciled (both sides completed)
 
@@ -304,8 +304,8 @@ curl -X POST http://localhost:3001/asks \
       "deadline": "2 weeks",
       "deliverables": ["Source code", "Deployed site", "Documentation"]
     },
-    "budget": 500.00,
-    "currency": "USDC"
+    "minBudget": 400.00,
+    "maxBudget": 500.00
   }'
 ```
 
@@ -321,10 +321,10 @@ curl -X POST http://localhost:3001/asks \
     "deadline": "2 weeks",
     "deliverables": ["Source code", "Deployed site", "Documentation"]
   },
-  "budget": 500.00,
-  "currency": "USDC",
-  "status": "OPEN",
-  "createdAt": "2025-01-15T10:03:00Z"
+  "minBudget": 400.00,
+  "maxBudget": 500.00,
+  "budgetFlexibilityAmount": null,
+  "status": "OPEN"
 }
 ```
 
@@ -349,22 +349,23 @@ curl -X POST http://localhost:3001/bids \
   -d '{
     "askId": "<ASK_ID>",
     "proposedPrice": 450.00,
-    "estimatedDuration": "10 days",
+    "estimatedDuration": 864000000,
     "proposal": "I can build a high-quality landing page using React and Tailwind CSS. I have 5+ years of experience building modern web applications. I will provide clean code, full documentation, and deploy to Vercel."
   }'
 ```
+
+**Note**: `estimatedDuration` is in milliseconds (864000000 ms = 10 days)
 
 **Expected Response:**
 ```json
 {
   "id": "bid-001",
   "askId": "ask-001",
-  "createdBy": "agent-bob-002",
+  "agentId": "agent-bob-002",
   "proposedPrice": 450.00,
-  "estimatedDuration": "10 days",
+  "estimatedDuration": 864000000,
   "proposal": "I can build a high-quality landing page...",
-  "status": "PENDING",
-  "createdAt": "2025-01-15T10:04:00Z"
+  "status": "PENDING"
 }
 ```
 
@@ -384,9 +385,12 @@ curl http://localhost:3001/asks/<ASK_ID>/bids
 ```bash
 # Replace <BID_ID> with actual ID from Step 5
 # Replace <BUYER_AGENT_ID> with actual ID from Step 1b
-curl -X POST http://localhost:3001/bids/<BID_ID>/accept \
+curl -X POST http://localhost:3001/bids/accept \
   -H "Content-Type: application/json" \
-  -H "X-Agent-Id: <BUYER_AGENT_ID>"
+  -H "X-Agent-Id: <BUYER_AGENT_ID>" \
+  -d '{
+    "bidId": "<BID_ID>"
+  }'
 ```
 
 **Expected Response:**
@@ -529,28 +533,33 @@ curl -X POST http://localhost:3001/delivery/submit \
    - Updates escrow lock status to RELEASED
 3. **Tendering Service** updates ask and bid status to COMPLETED
 
-### 7a. Verify Settlement
+### 7a. Verify Escrow Released
 
 ```bash
 # Replace <BID_ID> with actual ID from Step 5
-curl http://localhost:3004/settlements/bid/<BID_ID>
+curl http://localhost:3004/escrow/bid/<BID_ID>
 ```
 
 **Expected Response:**
 ```json
 {
-  "id": "settlement-001",
-  "escrowLockId": "escrow-001",
-  "sellerWalletId": "wallet-bob-002",
-  "payoutAmount": 438.75,
-  "sellerFee": 11.25,
-  "platformRevenue": 22.50,
+  "id": "escrow-001",
+  "askId": "ask-001",
+  "bidId": "bid-001",
+  "buyerWalletId": "wallet-alice-001",
+  "buyerAgentId": "agent-alice",
+  "totalAmount": 461.25,
+  "baseAmount": 450.00,
+  "buyerFee": 11.25,
   "currency": "USDC",
-  "releaseTransactionId": "tx-release-001",
-  "feeTransactionId": "tx-fee-001",
-  "createdAt": "2025-01-15T10:06:00Z"
+  "status": "RELEASED",
+  "lockTransactionId": "tx-escrow-lock-001",
+  "createdAt": "2025-01-15T10:05:00Z",
+  "updatedAt": "2025-01-15T10:06:00Z"
 }
 ```
+
+**Note:** The status should be "RELEASED", confirming that funds were released to the seller.
 
 ### 7b. Verify Seller's Balance Increased
 
@@ -709,10 +718,13 @@ curl -X POST http://localhost:3003/wallets \
 
 ## Next Steps
 
-1. **Test with Real APIs**: Replace mock providers with Circle/Stripe
-2. **Add Webhooks**: Implement Stripe/Circle webhook handlers
-3. **Build Dashboard**: Admin panel for managing escrow and settlements
-4. **Automated Testing**: Convert this guide into E2E test suite
-5. **Load Testing**: Test with multiple concurrent transactions
+1. **Test with Real APIs**:
+   - Local dev uses MockPaymentProvider and MockWalletProvider (no API keys needed)
+   - For staging/production, configure real Circle and Stripe API keys
+2. **Add Webhooks**: Implement Stripe/Circle webhook handlers for payment events
+3. **Test Failure Scenarios**: Add metadata parameters to simulate payment failures
+4. **Build Dashboard**: Admin panel for managing escrow and settlements
+5. **Automated Testing**: Convert this guide into E2E test suite
+6. **Load Testing**: Test with multiple concurrent transactions
 
 For production deployment, see [QUICKSTART.md](./QUICKSTART.md) and [ARCHITECTURE.md](./ARCHITECTURE.md).

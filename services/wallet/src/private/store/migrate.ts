@@ -92,15 +92,29 @@ async function createSchemaForLocalDb(
     await db.execute(sql`
       CREATE TABLE IF NOT EXISTS ledger_entries (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        agent_id TEXT NOT NULL,
         wallet_id UUID NOT NULL REFERENCES wallets(id),
-        transaction_id UUID NOT NULL REFERENCES transactions(id),
-        type TEXT NOT NULL CHECK (type IN ('DEBIT', 'CREDIT')),
-        amount REAL NOT NULL,
-        currency TEXT NOT NULL DEFAULT 'USDC',
-        balance REAL NOT NULL,
+        type TEXT NOT NULL CHECK (type IN ('ONRAMP', 'OFFRAMP', 'INTERNAL_TRANSFER')),
+        status TEXT NOT NULL DEFAULT 'PENDING' CHECK (status IN ('PENDING', 'EXTERNAL_COMPLETED', 'INTERNAL_COMPLETED', 'RECONCILED', 'FAILED', 'REQUIRES_MANUAL_REVIEW')),
+        external_provider TEXT,
+        external_transaction_id TEXT,
+        external_amount REAL,
+        external_currency TEXT,
+        external_status TEXT,
+        external_completed_at TIMESTAMPTZ,
+        internal_transaction_id UUID REFERENCES transactions(id),
+        internal_amount REAL NOT NULL,
+        internal_currency TEXT NOT NULL DEFAULT 'USDC',
+        internal_status TEXT,
+        internal_completed_at TIMESTAMPTZ,
+        reconciled_at TIMESTAMPTZ,
+        reconciliation_notes TEXT,
+        platform_fee REAL DEFAULT 0,
+        external_provider_fee REAL DEFAULT 0,
         description TEXT NOT NULL,
         metadata JSONB,
-        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       )
     `);
 
@@ -123,11 +137,19 @@ async function createSchemaForLocalDb(
     `);
 
     await db.execute(sql`
+      CREATE INDEX IF NOT EXISTS idx_ledger_entries_agent_id ON ledger_entries(agent_id)
+    `);
+
+    await db.execute(sql`
       CREATE INDEX IF NOT EXISTS idx_ledger_entries_wallet_id ON ledger_entries(wallet_id)
     `);
 
     await db.execute(sql`
-      CREATE INDEX IF NOT EXISTS idx_ledger_entries_transaction_id ON ledger_entries(transaction_id)
+      CREATE INDEX IF NOT EXISTS idx_ledger_entries_internal_transaction_id ON ledger_entries(internal_transaction_id)
+    `);
+
+    await db.execute(sql`
+      CREATE INDEX IF NOT EXISTS idx_ledger_entries_external_transaction_id ON ledger_entries(external_transaction_id)
     `);
 
     logger.info('Database schema created successfully');
