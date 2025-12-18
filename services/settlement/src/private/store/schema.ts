@@ -1,9 +1,10 @@
 import { pgTable, text, jsonb, uuid, real } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 import { temporalTimestamp } from '@harbor/db/temporal';
 import { Temporal } from 'temporal-polyfill';
 
 export const escrowLocks = pgTable('escrow_locks', {
-  id: uuid('id').primaryKey().defaultRandom(),
+  id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
   askId: text('ask_id').notNull(),
   bidId: text('bid_id').notNull(),
   buyerWalletId: text('buyer_wallet_id').notNull(),
@@ -22,7 +23,7 @@ export const escrowLocks = pgTable('escrow_locks', {
 });
 
 export const settlements = pgTable('settlements', {
-  id: uuid('id').primaryKey().defaultRandom(),
+  id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
   escrowLockId: uuid('escrow_lock_id')
     .notNull()
     .references(() => escrowLocks.id),

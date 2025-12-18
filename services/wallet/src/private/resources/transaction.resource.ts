@@ -1,4 +1,4 @@
-import { eq, desc } from 'drizzle-orm';
+import { eq, desc, or } from 'drizzle-orm';
 import type { Logger } from '@harbor/logger';
 import { NotFoundError } from '@harbor/errors';
 import { getDb, transactions, type TransactionRow } from '../store/index.js';
@@ -58,7 +58,12 @@ export class TransactionResource {
     const transactionRows = await this.db
       .select()
       .from(transactions)
-      .where(eq(transactions.fromWalletId, walletId))
+      .where(
+        or(
+          eq(transactions.fromWalletId, walletId),
+          eq(transactions.toWalletId, walletId)
+        )
+      )
       .orderBy(desc(transactions.createdAt))
       .limit(limit);
 
@@ -98,7 +103,7 @@ export class TransactionResource {
       currency: row.currency,
       status: row.status as TransactionStatus,
       externalId: row.externalId || undefined,
-      metadata: row.metadata as Record<string, unknown> | undefined,
+      metadata: row.metadata ? (row.metadata as Record<string, unknown>) : undefined,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
     };

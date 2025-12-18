@@ -1,9 +1,10 @@
 import { pgTable, text, jsonb, uuid, real } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 import { temporalTimestamp, temporalTimestampNullable } from '@harbor/db/temporal';
 import { Temporal } from 'temporal-polyfill';
 
 export const wallets = pgTable('wallets', {
-  id: uuid('id').primaryKey().defaultRandom(),
+  id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
   agentId: text('agent_id').notNull().unique(), // One wallet per agent
   circleWalletId: text('circle_wallet_id'), // Circle wallet ID (nullable for testing)
   status: text('status', { enum: ['ACTIVE', 'SUSPENDED', 'CLOSED'] })
@@ -15,7 +16,7 @@ export const wallets = pgTable('wallets', {
 });
 
 export const transactions = pgTable('transactions', {
-  id: uuid('id').primaryKey().defaultRandom(),
+  id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
   type: text('type', {
     enum: ['DEPOSIT', 'WITHDRAWAL', 'TRANSFER', 'FEE', 'ESCROW_LOCK', 'ESCROW_RELEASE', 'MINT'],
   }).notNull(),
@@ -33,7 +34,7 @@ export const transactions = pgTable('transactions', {
 });
 
 export const ledgerEntries = pgTable('ledger_entries', {
-  id: uuid('id').primaryKey().defaultRandom(),
+  id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
   agentId: text('agent_id').notNull(), // Agent this entry belongs to
   walletId: uuid('wallet_id')
     .notNull()

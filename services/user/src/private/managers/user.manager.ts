@@ -35,6 +35,7 @@ export class UserManager {
     try {
       return await this.userResource.create(data);
     } catch (error) {
+      this.logger.error(`ERROR!!! ${error}`);
       // Check if it's a unique constraint violation
       if (error instanceof Error && error.message.includes('unique')) {
         throw new ConflictError('User with this email or phone already exists');
@@ -80,6 +81,7 @@ export class UserManager {
       // you might want to use a saga pattern or event-driven architecture
       // to ensure atomicity.
       this.walletClient.createWallet({ agentId: agent.id }).catch((error: any) => {
+        console.log("error:", error);
         this.logger.error(
           { error, agentId: agent.id },
           'Failed to create wallet for agent. Wallet will need to be created manually.'

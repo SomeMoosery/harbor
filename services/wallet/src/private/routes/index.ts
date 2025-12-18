@@ -11,8 +11,8 @@ import { WalletController } from '../controllers/wallet.controller.js';
 import { CircleWalletProvider } from '../providers/circleWalletProvider.js';
 import { StripePaymentProvider } from '../providers/stripePaymentProvider.js';
 import { MockWalletProvider } from '../providers/mockWalletProvider.js';
+import { MockPaymentProvider } from '../providers/mockPaymentProvider.js';
 import { createWalletSchema, depositSchema, transferSchema } from '../validators/wallet.validator.js';
-import { handleError } from '../utils/errorHandler.js';
 
 export function createRoutes(env: Environment, connectionString: string, logger: Logger, config: any) {
   const app = new Hono();
@@ -24,7 +24,7 @@ export function createRoutes(env: Environment, connectionString: string, logger:
   const ledgerEntryResource = new LedgerEntryResource(db, logger);
 
   // Initialize providers
-  // Use mock provider for local, real providers for staging/production
+  // Use mock providers for local, real providers for staging/production
   const walletProvider = env === 'local'
     ? new MockWalletProvider(logger)
     : new CircleWalletProvider(logger, {
@@ -33,10 +33,12 @@ export function createRoutes(env: Environment, connectionString: string, logger:
         isTestnet: env === 'staging',
       });
 
-  const paymentProvider = new StripePaymentProvider(logger, {
-    apiKey: config.stripe?.apiKey || '',
-    isTest: env !== 'production',
-  });
+  const paymentProvider = env === 'local'
+    ? new MockPaymentProvider(logger)
+    : new StripePaymentProvider(logger, {
+        apiKey: config.stripe?.apiKey || '',
+        isTest: env !== 'production',
+      });
 
   // Initialize manager and controller
   const manager = new WalletManager(
@@ -57,8 +59,11 @@ export function createRoutes(env: Environment, connectionString: string, logger:
     return controller.createWallet(c);
   });
 
-  app.get('/wallets/:id', (c) => controller.getWallet(c));
+  // More specific routes must come before generic :id routes
   app.get('/wallets/agent/:agentId', (c) => controller.getWalletByAgentId(c));
+  app.get('/wallets/agent/:agentId/balance', (c) => controller.getBalanceByAgentId(c));
+
+  app.get('/wallets/:id', (c) => controller.getWallet(c));
   app.get('/wallets/:id/balance', (c) => controller.getBalance(c));
   app.get('/wallets/:id/transactions', (c) => controller.getTransactions(c));
 

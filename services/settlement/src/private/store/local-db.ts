@@ -3,13 +3,17 @@ import { DataType, newDb } from 'pg-mem';
 import type { Logger } from '@harbor/logger';
 import { applyIntegrationsToPool } from 'drizzle-pgmem';
 import { Temporal } from 'temporal-polyfill';
+import { randomUUID } from 'node:crypto';
 import * as schema from './schema.js';
 
 let localDbInstance: ReturnType<typeof drizzle> | null = null;
 
 export function createLocalDb(logger: Logger) {
+  // Always reset to ensure fresh database on restart
+  // This prevents stale data when tsx watch hot-reloads
   if (localDbInstance) {
-    return localDbInstance;
+    logger.info('Resetting in-memory database for fresh start');
+    localDbInstance = null;
   }
 
   logger.info('Creating in-memory PostgreSQL database (pg-mem)');
@@ -33,13 +37,8 @@ export function createLocalDb(logger: Logger) {
   mem.public.registerFunction({
     name: 'gen_random_uuid',
     returns: DataType.uuid,
-    implementation: () => {
-      return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
-        const r = (Math.random() * 16) | 0;
-        const v = c === 'x' ? r : (r & 0x3) | 0x8;
-        return v.toString(16);
-      });
-    },
+    implementation: () => randomUUID(),
+    impure: true, // Mark as non-deterministic to prevent caching
   });
 
   mem.public.registerFunction({

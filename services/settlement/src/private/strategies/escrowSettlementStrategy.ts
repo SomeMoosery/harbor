@@ -48,9 +48,26 @@ export class EscrowSettlementStrategy implements SettlementStrategy {
       throw new InsufficientFundsError(totalAmount, balance.available.amount);
     }
 
-    // TODO: In production, actually transfer funds to escrow wallet here
-    // For now, we'll just record the lock in the database
-    // The wallet transfer would happen via WalletClient.transfer()
+    // Get platform escrow wallet
+    const escrowWallet = await this.walletClient.getWalletByAgentId(this.config.wallets.escrowAgentId);
+
+    // Transfer funds from buyer wallet to escrow wallet
+    this.logger.info(
+      {
+        fromWalletId: buyerWallet.id,
+        toWalletId: escrowWallet.id,
+        amount: totalAmount,
+        currency: params.currency,
+      },
+      'Transferring funds to escrow wallet'
+    );
+
+    const lockTransaction = await this.walletClient.transfer({
+      fromWalletId: buyerWallet.id,
+      toWalletId: escrowWallet.id,
+      amount: { amount: totalAmount, currency: params.currency },
+      description: `Escrow lock for bid ${params.bidId}`,
+    });
 
     // Create escrow lock record
     const escrowLock = await this.escrowLockResource.create({
@@ -62,6 +79,7 @@ export class EscrowSettlementStrategy implements SettlementStrategy {
       baseAmount,
       buyerFee,
       currency: params.currency,
+      lockTransactionId: lockTransaction.id,
       metadata: {
         lockedAt: new Date().toISOString(),
       },
@@ -97,15 +115,51 @@ export class EscrowSettlementStrategy implements SettlementStrategy {
     // Get seller's wallet
     const sellerWallet = await this.walletClient.getWalletByAgentId(params.sellerAgentId);
 
+    // Get platform wallets
+    const escrowWallet = await this.walletClient.getWalletByAgentId(this.config.wallets.escrowAgentId);
+    const revenueWallet = await this.walletClient.getWalletByAgentId(this.config.wallets.revenueAgentId);
+
     // Calculate seller payout and fees
     const sellerFeePercentage = this.config.fees.sellerPercentage;
     const sellerFee = escrowLock.baseAmount * sellerFeePercentage;
     const payoutAmount = escrowLock.baseAmount - sellerFee;
     const platformRevenue = escrowLock.buyerFee + sellerFee;
 
-    // TODO: In production, transfer funds from escrow wallet to seller wallet
-    // and to platform revenue wallet
-    // For now, we'll just record the settlement
+    // Transfer payout to seller
+    this.logger.info(
+      {
+        fromWalletId: escrowWallet.id,
+        toWalletId: sellerWallet.id,
+        amount: payoutAmount,
+        currency: escrowLock.currency,
+      },
+      'Transferring payout to seller wallet'
+    );
+
+    const releaseTransaction = await this.walletClient.transfer({
+      fromWalletId: escrowWallet.id,
+      toWalletId: sellerWallet.id,
+      amount: { amount: payoutAmount, currency: escrowLock.currency },
+      description: `Payout for escrow ${params.escrowLockId}`,
+    });
+
+    // Transfer platform revenue
+    this.logger.info(
+      {
+        fromWalletId: escrowWallet.id,
+        toWalletId: revenueWallet.id,
+        amount: platformRevenue,
+        currency: escrowLock.currency,
+      },
+      'Transferring fees to platform revenue wallet'
+    );
+
+    const feeTransaction = await this.walletClient.transfer({
+      fromWalletId: escrowWallet.id,
+      toWalletId: revenueWallet.id,
+      amount: { amount: platformRevenue, currency: escrowLock.currency },
+      description: `Platform fees for escrow ${params.escrowLockId}`,
+    });
 
     // Create settlement record
     const settlement = await this.settlementResource.create({
@@ -116,6 +170,8 @@ export class EscrowSettlementStrategy implements SettlementStrategy {
       sellerFee,
       platformRevenue,
       currency: escrowLock.currency,
+      releaseTransactionId: releaseTransaction.id,
+      feeTransactionId: feeTransaction.id,
       metadata: {
         deliveryProof: params.deliveryProof,
         releasedAt: new Date().toISOString(),
