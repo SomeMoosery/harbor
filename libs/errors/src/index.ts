@@ -106,3 +106,6 @@ export class InsufficientFundsError extends HarborError {
     super('Insufficient funds', { required, available });
   }
 }
+
+// Database errors
+export { DatabaseConnectionError, MigrationError, isDatabaseError } from './database-errors.js';

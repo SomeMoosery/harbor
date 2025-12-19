@@ -85,9 +85,18 @@ importers:
 
   libs/db:
     dependencies:
+      '@harbor/config':
+        specifier: workspace:*
+        version: link:../config
+      '@harbor/logger':
+        specifier: workspace:*
+        version: link:../logger
       drizzle-orm:
         specifier: ^0.36.4
         version: 0.36.4(@types/pg@8.16.0)(@types/react@18.3.27)(pg@8.16.3)(postgres@3.4.7)(react@18.3.1)
+      postgres:
+        specifier: ^3.4.5
+        version: 3.4.7
       temporal-polyfill:
         specifier: ^0.2.5
         version: 0.2.5

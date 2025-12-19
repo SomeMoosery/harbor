@@ -1,51 +1,33 @@
-import { drizzle } from 'drizzle-orm/postgres-js';
-import postgres from 'postgres';
 import type { Logger } from '@harbor/logger';
+import { createDatabaseConnection, type DatabaseConnection } from '@harbor/db';
 import * as schema from './schema.js';
 
-let productionDbInstance: ReturnType<typeof drizzle> | null = null;
-let client: ReturnType<typeof postgres> | null = null;
+let connection: DatabaseConnection<typeof schema> | null = null;
 
 /**
  * Create a connection to a real PostgreSQL database (Cloud SQL, RDS, etc.)
+ * Uses shared database connection utility from @harbor/db
  */
 export function createProductionDb(connectionString: string, logger: Logger) {
-  if (productionDbInstance) {
-    return productionDbInstance;
+  if (connection) {
+    return connection.db;
   }
 
-  if (!connectionString) {
-    throw new Error('Database connection string is required for production/staging environments');
-  }
-
-  logger.info({
-    host: new URL(connectionString).hostname,
-    database: new URL(connectionString).pathname.slice(1),
-  }, 'Connecting to PostgreSQL database');
-
-  // Create postgres client
-  client = postgres(connectionString, {
-    max: 10, // Connection pool size
+  connection = createDatabaseConnection(connectionString, schema, logger, {
+    max: 10,
     idle_timeout: 20,
     connect_timeout: 10,
   });
 
-  // Create Drizzle instance
-  productionDbInstance = drizzle(client, { schema });
-
-  logger.info('Database connection established');
-
-  return productionDbInstance;
+  return connection.db;
 }
 
 /**
  * Close the database connection (for graceful shutdown)
  */
 export async function closeProductionDb(logger: Logger) {
-  if (client) {
-    logger.info('Closing database connection');
-    await client.end();
-    client = null;
-    productionDbInstance = null;
+  if (connection) {
+    await connection.close();
+    connection = null;
   }
 }
