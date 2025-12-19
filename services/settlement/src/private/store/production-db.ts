@@ -24,6 +24,10 @@ export function createProductionDb(connectionString: string, logger: Logger) {
     max: 10,
     idle_timeout: 20,
     connect_timeout: 10,
+    types: {
+      // Parse timestamps as Date objects (required for temporalTimestamp custom type)
+      date: postgres.types.date,
+    },
   });
 
   productionDbInstance = drizzle(client, { schema });

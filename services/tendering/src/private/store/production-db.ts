@@ -28,6 +28,10 @@ export function createProductionDb(connectionString: string, logger: Logger) {
     max: 10, // Connection pool size
     idle_timeout: 20,
     connect_timeout: 10,
+    types: {
+      // Parse timestamps as Date objects (required for temporalTimestamp custom type)
+      date: postgres.types.date,
+    },
   });
 
   // Create Drizzle instance
