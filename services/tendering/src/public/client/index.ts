@@ -17,12 +17,12 @@ export class TenderingClient {
     this.baseUrl = baseUrl ?? getServiceUrl('tendering');
   }
 
-  async createAsk(userId: string, data: CreateAskRequest): Promise<Ask> {
+  async createAsk(agentId: string, data: CreateAskRequest): Promise<Ask> {
     const response = await fetch(`${this.baseUrl}/asks`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'X-User-Id': userId,
+        'X-Agent-Id': agentId,
       },
       body: JSON.stringify(data),
     });
@@ -91,18 +91,39 @@ export class TenderingClient {
     return z.array(bidSchema).parse(json);
   }
 
-  async acceptBid(userId: string, bidId: string): Promise<{ bid: Bid; ask: Ask }> {
+  async acceptBid(agentId: string, bidId: string): Promise<{ bid: Bid; ask: Ask }> {
     const response = await fetch(`${this.baseUrl}/bids/accept`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'X-User-Id': userId,
+        'X-Agent-Id': agentId,
       },
       body: JSON.stringify({ bidId }),
     });
 
     if (!response.ok) {
       throw new Error(`Failed to accept bid: ${response.statusText}`);
+    }
+
+    const json = await response.json();
+    return z.object({
+      bid: bidSchema,
+      ask: askSchema,
+    }).parse(json);
+  }
+
+  async submitDelivery(agentId: string, bidId: string, deliveryProof: Record<string, unknown>): Promise<{ bid: Bid; ask: Ask }> {
+    const response = await fetch(`${this.baseUrl}/delivery/submit`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Agent-Id': agentId,
+      },
+      body: JSON.stringify({ bidId, deliveryProof }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to submit delivery: ${response.statusText}`);
     }
 
     const json = await response.json();

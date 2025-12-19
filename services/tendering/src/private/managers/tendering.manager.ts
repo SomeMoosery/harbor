@@ -17,6 +17,8 @@ import { EventPublisher } from '../utils/eventPublisher.js';
 export class TenderingManager {
   private readonly settlementClient: SettlementClient;
   private readonly eventPublisher: EventPublisher;
+  // In-memory storage for delivery data (temporary until buyer retrieves)
+  private readonly deliveryDataCache = new Map<string, Record<string, unknown>>();
 
   constructor(
     private readonly askResource: AskResource,
@@ -62,7 +64,15 @@ export class TenderingManager {
   }
 
   async getAsk(id: string): Promise<Ask> {
-    return this.askResource.findById(id);
+    const ask = await this.askResource.findById(id);
+
+    // Include delivery data from cache if available
+    const deliveryData = this.deliveryDataCache.get(id);
+    if (deliveryData) {
+      return { ...ask, deliveryData };
+    }
+
+    return ask;
   }
 
   async listAsks(filters?: { status?: AskStatus; createdBy?: string }): Promise<Ask[]> {
@@ -225,6 +235,11 @@ export class TenderingManager {
 
     // Update ask status to completed
     const updatedAsk = await this.askResource.updateStatus(ask.id, 'COMPLETED');
+
+    // Store delivery data in cache for buyer to retrieve
+    if (deliveryProof) {
+      this.deliveryDataCache.set(ask.id, deliveryProof);
+    }
 
     // Publish delivery_submitted event
     await this.eventPublisher.publishDeliverySubmitted({
