@@ -26,7 +26,7 @@ import { Temporal } from 'temporal-polyfill';
  */
 export const temporalTimestamp = customType<{
   data: Temporal.ZonedDateTime;
-  driverData: Date;
+  driverData: string;
   notNull: false;
   default: false;
 }>({
@@ -44,10 +44,10 @@ export const temporalTimestamp = customType<{
   },
 
   /**
-   * Convert from application (Temporal.ZonedDateTime) to database (Date)
+   * Convert from application (Temporal.ZonedDateTime) to database (ISO string)
    */
-  toDriver: (value: Temporal.ZonedDateTime): Date => {
-    return new Date(value.epochMilliseconds);
+  toDriver: (value: Temporal.ZonedDateTime): string => {
+    return new Date(value.epochMilliseconds).toISOString();
   },
 });
 
@@ -65,7 +65,7 @@ export const temporalTimestamp = customType<{
  */
 export const temporalTimestampNullable = customType<{
   data: Temporal.ZonedDateTime | null;
-  driverData: Date | null;
+  driverData: string | null;
   notNull: false;
   default: false;
 }>({
@@ -80,8 +80,8 @@ export const temporalTimestampNullable = customType<{
       .toZonedDateTimeISO('UTC');
   },
 
-  toDriver: (value: Temporal.ZonedDateTime | null): Date | null => {
+  toDriver: (value: Temporal.ZonedDateTime | null): string | null => {
     if (value === null) return null;
-    return new Date(value.epochMilliseconds);
+    return new Date(value.epochMilliseconds).toISOString();
   },
 });
