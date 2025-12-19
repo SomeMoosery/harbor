@@ -226,6 +226,12 @@ export class TenderingManager {
     // Update ask status to completed
     const updatedAsk = await this.askResource.updateStatus(ask.id, 'COMPLETED');
 
+    // Publish delivery_submitted event
+    await this.eventPublisher.publishDeliverySubmitted({
+      contractId: escrowLock.id,
+      deliveryData: deliveryProof,
+    });
+
     return {
       bid,
       ask: updatedAsk,

@@ -26,26 +26,28 @@ import { Temporal } from 'temporal-polyfill';
  */
 export const temporalTimestamp = customType<{
   data: Temporal.ZonedDateTime;
-  driverData: Date;
+  driverData: string;
   notNull: false;
   default: false;
 }>({
   dataType: () => 'timestamptz',
 
   /**
-   * Convert from database (Date) to application (Temporal.ZonedDateTime)
+   * Convert from database (Date or string) to application (Temporal.ZonedDateTime)
    */
-  fromDriver: (value: Date): Temporal.ZonedDateTime => {
+  fromDriver: (value: Date | string): Temporal.ZonedDateTime => {
+    // postgres-js returns timestamps as strings by default
+    const timestamp = value instanceof Date ? value.getTime() : new Date(value).getTime();
     return Temporal.Instant
-      .fromEpochMilliseconds(value.getTime())
+      .fromEpochMilliseconds(timestamp)
       .toZonedDateTimeISO('UTC');
   },
 
   /**
-   * Convert from application (Temporal.ZonedDateTime) to database (Date)
+   * Convert from application (Temporal.ZonedDateTime) to database (ISO string)
    */
-  toDriver: (value: Temporal.ZonedDateTime): Date => {
-    return new Date(value.epochMilliseconds);
+  toDriver: (value: Temporal.ZonedDateTime): string => {
+    return new Date(value.epochMilliseconds).toISOString();
   },
 });
 
@@ -63,21 +65,23 @@ export const temporalTimestamp = customType<{
  */
 export const temporalTimestampNullable = customType<{
   data: Temporal.ZonedDateTime | null;
-  driverData: Date | null;
+  driverData: string | null;
   notNull: false;
   default: false;
 }>({
   dataType: () => 'timestamptz',
 
-  fromDriver: (value: Date | null): Temporal.ZonedDateTime | null => {
+  fromDriver: (value: Date | string | null): Temporal.ZonedDateTime | null => {
     if (value === null) return null;
+    // postgres-js returns timestamps as strings by default
+    const timestamp = value instanceof Date ? value.getTime() : new Date(value).getTime();
     return Temporal.Instant
-      .fromEpochMilliseconds(value.getTime())
+      .fromEpochMilliseconds(timestamp)
       .toZonedDateTimeISO('UTC');
   },
 
-  toDriver: (value: Temporal.ZonedDateTime | null): Date | null => {
+  toDriver: (value: Temporal.ZonedDateTime | null): string | null => {
     if (value === null) return null;
-    return new Date(value.epochMilliseconds);
+    return new Date(value.epochMilliseconds).toISOString();
   },
 });

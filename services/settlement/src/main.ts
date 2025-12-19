@@ -19,7 +19,7 @@ async function startServer() {
 
   if (config.database.autoMigrate) {
     try {
-      await runMigrations(config.env, config.database.url, logger);
+      await runMigrations(config.env, config.database.url, config.database.useLocalPostgres, logger);
     } catch (error) {
       logger.fatal({ error }, 'Failed to run migrations, shutting down');
       process.exit(1);
@@ -36,7 +36,7 @@ async function startServer() {
     process.exit(1);
   }
 
-  const app = createRoutes(config.env, config.database.url, logger, config);
+  const app = createRoutes(config.env, config.database.url, config.database.useLocalPostgres, logger, config);
 
   const server = serve(
     {
@@ -61,7 +61,7 @@ async function startServer() {
       logger.info('HTTP server closed');
 
       try {
-        await closeDb(config.env, logger);
+        await closeDb(config.env, config.database.useLocalPostgres, logger);
         logger.info('Database connection closed');
         process.exit(0);
       } catch (error) {

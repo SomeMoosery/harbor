@@ -12,7 +12,10 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
+    "@harbor/config": "workspace:*",
+    "@harbor/logger": "workspace:*",
     "drizzle-orm": "^0.36.4",
+    "postgres": "^3.4.5",
     "temporal-polyfill": "^0.2.5"
   },
   "devDependencies": {

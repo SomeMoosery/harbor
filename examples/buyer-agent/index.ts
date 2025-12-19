@@ -1,4 +1,5 @@
 import { HarborClient } from '@harbor/sdk';
+import * as readline from 'readline';
 
 // Configuration from environment variables
 const API_KEY = process.env.HARBOR_API_KEY || '';
@@ -17,6 +18,21 @@ const think = async (message: string, minMs = 500, maxMs = 2000) => {
   const thinkTime = Math.floor(Math.random() * (maxMs - minMs)) + minMs;
   console.log(`🤔 ${message}...`);
   await delay(thinkTime);
+};
+
+// Utility to prompt user for yes/no decision
+const promptYesNo = async (question: string): Promise<boolean> => {
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout,
+  });
+
+  return new Promise((resolve) => {
+    rl.question(`${question} (y/n): `, (answer) => {
+      rl.close();
+      resolve(answer.toLowerCase() === 'y' || answer.toLowerCase() === 'yes');
+    });
+  });
 };
 
 async function runBuyerAgent() {
@@ -43,8 +59,17 @@ async function runBuyerAgent() {
     console.log(`   Bid ID: ${data.bidId}`);
     console.log(`   Price: ${data.price} ${data.currency}`);
     console.log(`   Seller Agent: ${data.agentId}`);
+    console.log('');
 
     await think('Evaluating bid');
+
+    const shouldAccept = await promptYesNo('Accept this bid?');
+
+    if (!shouldAccept) {
+      console.log(`⏭️  Bid declined`);
+      console.log('');
+      return;
+    }
 
     try {
       console.log(`✅ Accepting bid ${data.bidId}...`);
@@ -74,6 +99,10 @@ async function runBuyerAgent() {
     console.log('');
     console.log(`📦 Delivery received!`);
     console.log(`   Contract ID: ${data.contractId}`);
+    console.log('');
+    console.log(`📄 Delivery Details:`);
+    console.log(JSON.stringify(data.deliveryData, null, 2));
+    console.log('');
     console.log(`✨ Transaction complete!`);
     console.log('');
   });

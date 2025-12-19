@@ -14,7 +14,7 @@ import { ApiKeyController } from '../controllers/apiKey.controller.js';
 import { createUserSchema, createAgentSchema } from '../validators/user.validator.js';
 import { handleError } from '../utils/errorHandler.js';
 
-export function createRoutes(env: Environment, connectionString: string, logger: Logger) {
+export function createRoutes(env: Environment, connectionString: string, useLocalPostgres: boolean, logger: Logger) {
   const app = new Hono();
 
   // Enable CORS for local development
@@ -24,7 +24,7 @@ export function createRoutes(env: Environment, connectionString: string, logger:
     allowHeaders: ['Content-Type', 'Authorization'],
   }));
 
-  const db = getDb(env, connectionString, logger);
+  const db = getDb(env, connectionString, useLocalPostgres, logger);
 
   // Initialize layers
   const userResource = new UserResource(db, logger);
