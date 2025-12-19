@@ -43,6 +43,13 @@ export class EventPublisher {
     await this.publishEvent('bid_accepted', data);
   }
 
+  async publishDeliverySubmitted(data: {
+    contractId: string;
+    deliveryData: any;
+  }): Promise<void> {
+    await this.publishEvent('delivery_submitted', data);
+  }
+
   private async publishEvent(type: string, data: any, targetAgentId?: string): Promise<void> {
     try {
       this.logger.info({ type, data, targetAgentId }, 'Publishing event');
