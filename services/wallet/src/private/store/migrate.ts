@@ -20,26 +20,31 @@ import { getDb } from './index.js';
 export async function runMigrations(
   env: Environment,
   connectionString: string,
+  useLocalPostgres: boolean,
   logger: Logger
 ): Promise<void> {
   logger.info({ env }, 'Running database migrations');
 
-  const db = getDb(env, connectionString, logger);
+  const db = getDb(env, connectionString, useLocalPostgres, logger);
 
   try {
-    if (env === 'local') {
-      // For local in-memory database, we need to create the schema directly
-      // since pg-mem doesn't support file-based migrations
+    if (env === 'local' && !useLocalPostgres) {
+      // For pg-mem only: create schema directly since it doesn't support file-based migrations
+      // 
       await createSchemaForLocalDb(db, logger);
     } else {
-      // For staging/production, use Drizzle's migration system
-      // This reads from the drizzle/ directory
+      // For all PostgreSQL (local and deployed): use Drizzle migrations
       await migrate(db as any, { migrationsFolder: './drizzle' });
     }
 
     logger.info('Database migrations completed successfully');
   } catch (error) {
-    logger.error({ error }, 'Failed to run migrations');
+    logger.error({
+      error,
+      message: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      name: error instanceof Error ? error.name : undefined
+    }, 'Failed to run migrations');
     throw error;
   }
 }

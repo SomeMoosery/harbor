@@ -19,9 +19,13 @@ async function startServer() {
   // Run migrations if configured (auto in local, manual in staging/prod)
   if (config.database.autoMigrate) {
     try {
-      await runMigrations(config.env, config.database.url, logger);
+      await runMigrations(config.env, config.database.url, config.database.useLocalPostgres, logger);
     } catch (error) {
-      logger.fatal({ error }, 'Failed to run migrations, shutting down');
+      logger.fatal({
+        error,
+        message: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined
+      }, 'Failed to run migrations, shutting down');
       process.exit(1);
     }
   } else {
@@ -29,7 +33,7 @@ async function startServer() {
   }
 
   // Create routes with environment-aware database
-  const app = createRoutes(config.env, config.database.url, logger);
+  const app = createRoutes(config.env, config.database.url, config.database.useLocalPostgres, logger);
 
   // Start HTTP server
   const server = serve(
@@ -56,7 +60,7 @@ async function startServer() {
       logger.info('HTTP server closed');
 
       try {
-        await closeDb(config.env, logger);
+        await closeDb(config.env, config.database.useLocalPostgres, logger);
         logger.info('Database connection closed');
         process.exit(0);
       } catch (error) {

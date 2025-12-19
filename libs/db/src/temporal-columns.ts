@@ -33,11 +33,13 @@ export const temporalTimestamp = customType<{
   dataType: () => 'timestamptz',
 
   /**
-   * Convert from database (Date) to application (Temporal.ZonedDateTime)
+   * Convert from database (Date or string) to application (Temporal.ZonedDateTime)
    */
-  fromDriver: (value: Date): Temporal.ZonedDateTime => {
+  fromDriver: (value: Date | string): Temporal.ZonedDateTime => {
+    // postgres-js returns timestamps as strings by default
+    const timestamp = value instanceof Date ? value.getTime() : new Date(value).getTime();
     return Temporal.Instant
-      .fromEpochMilliseconds(value.getTime())
+      .fromEpochMilliseconds(timestamp)
       .toZonedDateTimeISO('UTC');
   },
 
@@ -69,10 +71,12 @@ export const temporalTimestampNullable = customType<{
 }>({
   dataType: () => 'timestamptz',
 
-  fromDriver: (value: Date | null): Temporal.ZonedDateTime | null => {
+  fromDriver: (value: Date | string | null): Temporal.ZonedDateTime | null => {
     if (value === null) return null;
+    // postgres-js returns timestamps as strings by default
+    const timestamp = value instanceof Date ? value.getTime() : new Date(value).getTime();
     return Temporal.Instant
-      .fromEpochMilliseconds(value.getTime())
+      .fromEpochMilliseconds(timestamp)
       .toZonedDateTimeISO('UTC');
   },
 

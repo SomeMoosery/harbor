@@ -8,14 +8,15 @@ import { getDb } from './index.js';
 export async function runMigrations(
   env: Environment,
   connectionString: string,
+  useLocalPostgres: boolean,
   logger: Logger
 ): Promise<void> {
   logger.info({ env }, 'Running database migrations');
 
-  const db = getDb(env, connectionString, logger);
+  const db = getDb(env, connectionString, useLocalPostgres, logger);
 
   try {
-    if (env === 'local') {
+    if (env === 'local' && !useLocalPostgres) {
       await createSchemaForLocalDb(db, logger);
     } else {
       await migrate(db as any, { migrationsFolder: './drizzle' });
@@ -23,7 +24,12 @@ export async function runMigrations(
 
     logger.info('Database migrations completed successfully');
   } catch (error) {
-    logger.error({ error }, 'Failed to run migrations');
+    logger.error({
+      error,
+      message: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      name: error instanceof Error ? error.name : undefined
+    }, 'Failed to run migrations');
     throw error;
   }
 }

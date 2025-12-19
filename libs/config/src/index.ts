@@ -1,7 +1,14 @@
 import { config } from 'dotenv';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
 
-// Load environment variables
-config();
+// Get the monorepo root directory
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const monorepoRoot = join(__dirname, '../../..');
+
+// Load environment variables from monorepo root
+config({ path: join(monorepoRoot, '.env') });
 
 import type { Environment } from './environment.js';
 import { getEnvironment } from './environment.js';
@@ -14,6 +21,7 @@ export interface Config {
   database: {
     url: string;
     autoMigrate: boolean;
+    useLocalPostgres: boolean;
   };
 
   circle: {
@@ -48,6 +56,7 @@ export function createConfig(serviceName: string, defaultPort: number): Config {
       url: process.env[`DATABASE_URL_${serviceName.toUpperCase()}`] ?? process.env.DATABASE_URL ?? '',
       // Auto-migrate in local by default, configurable via env var
       autoMigrate: process.env.DB_AUTO_MIGRATE === 'true' || (env === 'local' && process.env.DB_AUTO_MIGRATE !== 'false'),
+      useLocalPostgres: process.env.USE_LOCAL_POSTGRES === 'true',
     },
 
     circle: {

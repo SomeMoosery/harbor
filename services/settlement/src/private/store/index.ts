@@ -6,12 +6,12 @@ import { createProductionDb, closeProductionDb } from './production-db.js';
 
 let db: ReturnType<typeof drizzle> | null = null;
 
-export function getDb(env: Environment, connectionString: string, logger: Logger): ReturnType<typeof drizzle> {
+export function getDb(env: Environment, connectionString: string, useLocalPostgres: boolean, logger: Logger): ReturnType<typeof drizzle> {
   if (db) {
     return db;
   }
 
-  if (env === 'local') {
+  if (env === 'local' && !useLocalPostgres) {
     db = createLocalDb(logger);
   } else {
     db = createProductionDb(connectionString, logger);
@@ -20,8 +20,8 @@ export function getDb(env: Environment, connectionString: string, logger: Logger
   return db;
 }
 
-export async function closeDb(env: Environment, logger: Logger) {
-  if (env !== 'local') {
+export async function closeDb(env: Environment, useLocalPostgres: boolean, logger: Logger) {
+  if (env !== 'local' || useLocalPostgres) {
     await closeProductionDb(logger);
   }
   db = null;

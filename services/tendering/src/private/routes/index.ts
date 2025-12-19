@@ -12,9 +12,9 @@ import { createAskSchema } from '../validators/ask.validator.js';
 import { handleError } from '../utils/errorHandler.js';
 import { acceptBidSchema, createBidSchema } from '../validators/bid.validator.js';
 
-export function createRoutes(env: Environment, connectionString: string, logger: Logger) {
+export function createRoutes(env: Environment, connectionString: string, useLocalPostgres: boolean, logger: Logger) {
   const app = new Hono();
-  const db = getDb(env, connectionString, logger);
+  const db = getDb(env, connectionString, useLocalPostgres, logger);
 
   // Initialize layers
   const userClient = new UserClient();

@@ -9,15 +9,16 @@ let db: ReturnType<typeof drizzle> | null = null;
 /**
  * Get database instance based on environment
  *
- * - local: In-memory PostgreSQL (pg-mem)
+ * - local with useLocalPostgres=false: In-memory PostgreSQL (pg-mem)
+ * - local with useLocalPostgres=true: Local PostgreSQL (Docker)
  * - staging/production: Real PostgreSQL (Cloud SQL, RDS, etc.)
  */
-export function getDb(env: Environment, connectionString: string, logger: Logger): ReturnType<typeof drizzle> {
+export function getDb(env: Environment, connectionString: string, useLocalPostgres: boolean, logger: Logger): ReturnType<typeof drizzle> {
   if (db) {
     return db;
   }
 
-  if (env === 'local') {
+  if (env === 'local' && !useLocalPostgres) {
     db = createLocalDb(logger);
   } else {
     db = createProductionDb(connectionString, logger);
@@ -29,8 +30,8 @@ export function getDb(env: Environment, connectionString: string, logger: Logger
 /**
  * Close database connection (for graceful shutdown)
  */
-export async function closeDb(env: Environment, logger: Logger) {
-  if (env !== 'local') {
+export async function closeDb(env: Environment, useLocalPostgres: boolean, logger: Logger) {
+  if (env !== 'local' || useLocalPostgres) {
     await closeProductionDb(logger);
   }
   db = null;

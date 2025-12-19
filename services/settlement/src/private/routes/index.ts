@@ -9,9 +9,9 @@ import { SettlementManager } from '../managers/settlement.manager.js';
 import { SettlementController } from '../controllers/settlement.controller.js';
 import { lockEscrowSchema, releaseEscrowSchema } from '../validators/settlement.validator.js';
 
-export function createRoutes(env: Environment, connectionString: string, logger: Logger, config: Config) {
+export function createRoutes(env: Environment, connectionString: string, useLocalPostgres: boolean, logger: Logger, config: Config) {
   const app = new Hono();
-  const db = getDb(env, connectionString, logger);
+  const db = getDb(env, connectionString, useLocalPostgres, logger);
 
   // Initialize resources
   const escrowLockResource = new EscrowLockResource(db, logger);
