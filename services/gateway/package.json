@@ -1,0 +1,26 @@
+{
+  "name": "@harbor/gateway",
+  "version": "0.1.0",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "dev": "tsx watch src/main.ts",
+    "build": "tsc --build",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@harbor/config": "workspace:*",
+    "@harbor/logger": "workspace:*",
+    "@harbor/errors": "workspace:*",
+    "@harbor/user": "workspace:*",
+    "@hono/node-server": "^1.19.7",
+    "hono": "^4.10.8",
+    "ws": "^8.18.0",
+    "temporal-polyfill": "^0.2.5"
+  },
+  "devDependencies": {
+    "@types/ws": "^8.5.13",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  }
+}

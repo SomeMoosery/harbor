@@ -1,4 +1,5 @@
 import { Hono } from 'hono';
+import { cors } from 'hono/cors';
 import { zValidator } from '@hono/zod-validator';
 import type { Logger } from '@harbor/logger';
 import type { Environment } from '@harbor/config';
@@ -16,6 +17,14 @@ import { createWalletSchema, depositSchema, transferSchema } from '../validators
 
 export function createRoutes(env: Environment, connectionString: string, logger: Logger, config: any) {
   const app = new Hono();
+
+  // Enable CORS for local development
+  app.use('/*', cors({
+    origin: '*',
+    allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowHeaders: ['Content-Type', 'Authorization'],
+  }));
+
   const db = getDb(env, connectionString, logger);
 
   // Initialize resources

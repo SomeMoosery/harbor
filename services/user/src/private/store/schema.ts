@@ -27,5 +27,18 @@ export const agents = pgTable('agents', {
   deletedAt: temporalTimestampNullable('deleted_at'),
 });
 
+export const apiKeys = pgTable('api_keys', {
+  id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+  userId: uuid('user_id')
+    .notNull()
+    .references(() => users.id),
+  key: text('key').notNull().unique(),
+  name: text('name'),
+  lastUsedAt: temporalTimestampNullable('last_used_at'),
+  createdAt: temporalTimestamp('created_at').notNull().default(Temporal.Now.zonedDateTimeISO()),
+  deletedAt: temporalTimestampNullable('deleted_at'),
+});
+
 export type UserRow = typeof users.$inferSelect;
 export type AgentRow = typeof agents.$inferSelect;
+export type ApiKeyRow = typeof apiKeys.$inferSelect;

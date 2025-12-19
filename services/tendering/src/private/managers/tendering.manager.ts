@@ -9,12 +9,14 @@ import { Ask } from '../../public/model/ask.js';
 import { CreateBidRequest } from '../../public/request/createBidRequest.js';
 import { Bid } from '../../public/model/bid.js';
 import { AskStatus } from '../../public/model/askStatus.js';
+import { EventPublisher } from '../utils/eventPublisher.js';
 
 /**
  * TenderingManager orchestrates business logic across asks and bids
  */
 export class TenderingManager {
   private readonly settlementClient: SettlementClient;
+  private readonly eventPublisher: EventPublisher;
 
   constructor(
     private readonly askResource: AskResource,
@@ -23,6 +25,7 @@ export class TenderingManager {
     private readonly logger: Logger
   ) {
     this.settlementClient = new SettlementClient();
+    this.eventPublisher = new EventPublisher(logger);
   }
 
   async createAsk(agentId: string, data: CreateAskRequest): Promise<Ask> {
@@ -40,10 +43,22 @@ export class TenderingManager {
     // 1. Check user has sufficient balance (call WalletClient)
     // 2. Lock escrow funds
 
-    return this.askResource.create({
+    const ask = await this.askResource.create({
       ...data,
       createdBy: agentId,
     });
+
+    // Publish ask_created event
+    await this.eventPublisher.publishAskCreated({
+      askId: ask.id,
+      agentId: ask.createdBy,
+      description: ask.description,
+      maxPrice: ask.maxBudget,
+      currency: 'USDC', // TODO: Add currency to Ask model
+      expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // TODO: Add expiresAt to Ask model
+    });
+
+    return ask;
   }
 
   async getAsk(id: string): Promise<Ask> {
@@ -72,13 +87,25 @@ export class TenderingManager {
       throw new ForbiddenError('Only SELLER or DUAL agents can create bids');
     }
 
-    return this.bidResource.create({
+    const bid = await this.bidResource.create({
       askId: data.askId,
       proposedPrice: data.proposedPrice,
       estimatedDuration: data.estimatedDuration,
       proposal: data.proposal,
       agentId,
     });
+
+    // Publish bid_created event
+    await this.eventPublisher.publishBidCreated({
+      bidId: bid.id,
+      askId: bid.askId,
+      agentId: bid.agentId,
+      price: bid.proposedPrice,
+      currency: 'USDC', // TODO: Add currency to Bid model
+      expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // TODO: Add expiresAt to Bid model
+    });
+
+    return bid;
   }
 
   async getBidsForAsk(askId: string): Promise<Bid[]> {
@@ -117,10 +144,11 @@ export class TenderingManager {
     const updatedAsk = await this.askResource.updateStatus(bid.askId, 'IN_PROGRESS');
 
     // Lock escrow funds
-    // TODO this should somehow be abstracted away to "move funds" once we have a clearer picture of 
+    // TODO this should somehow be abstracted away to "move funds" once we have a clearer picture of
     //  how the credit systems will take place (eg does the Buyer extend credit? Third party?)
+    let contractId: string;
     try {
-      await this.settlementClient.lockEscrow({
+      const escrowLock = await this.settlementClient.lockEscrow({
         askId: ask.id,
         bidId: bid.id,
         buyerAgentId: ask.createdBy,
@@ -128,11 +156,19 @@ export class TenderingManager {
         currency: 'USDC',
       });
 
-      this.logger.info({ bidId, askId: ask.id }, 'Escrow funds locked successfully');
+      contractId = escrowLock.id; // Use escrow lock ID as contract ID
+      this.logger.info({ bidId, askId: ask.id, contractId }, 'Escrow funds locked successfully');
     } catch (error) {
       this.logger.error({ error, bidId, askId: ask.id }, 'Failed to lock escrow funds');
       throw error;
     }
+
+    // Publish bid_accepted event
+    await this.eventPublisher.publishBidAccepted({
+      bidId: acceptedBid.id,
+      askId: updatedAsk.id,
+      contractId,
+    });
 
     return {
       bid: acceptedBid,
