@@ -14,7 +14,7 @@ export interface ConnectionPoolConfig {
   connect_timeout?: number;
 }
 
-export interface DatabaseConnection<TSchema extends Record<string, unknown>> {
+export interface DatabaseConnection<_TSchema extends Record<string, unknown> = Record<string, unknown>> {
   db: any; // drizzle instance
   close: () => Promise<void>;
 }

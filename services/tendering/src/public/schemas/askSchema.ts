@@ -14,6 +14,7 @@ export const askSchema = z.object({
   budgetFlexibilityAmount: z.number().optional(),
   createdBy: z.string(),
   status: z.enum(askStatusValues),
+  deliveryData: z.record(z.unknown()).optional(), // From in-memory cache
 });
 
 export type AskSchema = z.infer<typeof askSchema>;

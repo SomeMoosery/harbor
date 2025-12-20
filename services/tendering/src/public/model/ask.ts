@@ -10,4 +10,5 @@ export interface Ask {
   budgetFlexibilityAmount?: number;
   createdBy: string;
   status: AskStatus;
+  deliveryData?: Record<string, unknown>; // From in-memory cache, not database
 }

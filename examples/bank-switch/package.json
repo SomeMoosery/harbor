@@ -1,0 +1,19 @@
+{
+  "name": "@harbor/examples-bank-switch",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "datahive": "tsx sellers/datahive-scraper.ts",
+    "phonetree": "tsx sellers/phonetree-caller.ts",
+    "swiftswitch": "tsx buyer/swiftswitch-assistant.ts"
+  },
+  "dependencies": {
+    "@harbor/logger": "workspace:*",
+    "@harbor/config": "workspace:*"
+  },
+  "devDependencies": {
+    "tsx": "^4.21.0",
+    "typescript": "^5.7.2"
+  }
+}
