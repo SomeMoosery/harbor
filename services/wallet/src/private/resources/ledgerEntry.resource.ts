@@ -202,7 +202,7 @@ export class LedgerEntryResource {
       .orderBy(desc(ledgerEntries.createdAt))
       .limit(limit);
 
-    return ledgerEntryRows.map(row => {
+    return ledgerEntryRows.map((row: any) => {
       const record = this.rowToRecord(row);
       return this.recordToLedgerEntry(record);
     });
@@ -243,7 +243,7 @@ export class LedgerEntryResource {
       .orderBy(desc(ledgerEntries.createdAt))
       .limit(limit);
 
-    return ledgerEntryRows.map(row => {
+    return ledgerEntryRows.map((row: any) => {
       const record = this.rowToRecord(row);
       return this.recordToLedgerEntry(record);
     });
@@ -260,7 +260,7 @@ export class LedgerEntryResource {
       .orderBy(desc(ledgerEntries.createdAt))
       .limit(limit);
 
-    return ledgerEntryRows.map(row => {
+    return ledgerEntryRows.map((row: any) => {
       const record = this.rowToRecord(row);
       return this.recordToLedgerEntry(record);
     });

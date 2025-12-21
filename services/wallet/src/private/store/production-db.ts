@@ -25,7 +25,7 @@ export function createProductionDb(connectionString: string, logger: Logger) {
 /**
  * Close the database connection (for graceful shutdown)
  */
-export async function closeProductionDb(logger: Logger) {
+export async function closeProductionDb(_logger: Logger) {
   if (connection) {
     await connection.close();
     connection = null;

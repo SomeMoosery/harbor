@@ -19,6 +19,7 @@
     "typescript": "^5.7.2"
   },
   "dependencies": {
+    "@circle-fin/developer-controlled-wallets": "^9.6.0",
     "temporal-polyfill": "^0.2.5"
   },
   "packageManager": "pnpm@9.15.0",

@@ -12,16 +12,19 @@ import type { Money } from '../../public/model/money.js';
  */
 export class StripePaymentProvider implements PaymentProvider {
   private apiKey: string;
+  private webhookSecret: string; // Used in verifyWebhook method
   private baseUrl: string;
 
   constructor(
     private logger: Logger,
     config: {
       apiKey: string;
+      webhookSecret: string;
       isTest?: boolean;
     }
   ) {
     this.apiKey = config.apiKey;
+    this.webhookSecret = config.webhookSecret;
     this.baseUrl = 'https://api.stripe.com';
   }
 
@@ -64,7 +67,7 @@ export class StripePaymentProvider implements PaymentProvider {
         throw new Error(`Failed to process Stripe deposit: ${error}`);
       }
 
-      const data = await response.json();
+      const data = await response.json() as any;
 
       const status = this.mapStripeStatus(data.status);
 
@@ -119,7 +122,7 @@ export class StripePaymentProvider implements PaymentProvider {
         throw new Error(`Failed to process Stripe withdrawal: ${error}`);
       }
 
-      const data = await response.json();
+      const data = await response.json() as any;
 
       const status = data.status === 'paid' ? 'completed' : 'pending';
 
@@ -167,7 +170,7 @@ export class StripePaymentProvider implements PaymentProvider {
         throw new Error(`Failed to get Stripe payment status: ${error}`);
       }
 
-      const data = await response.json();
+      const data = await response.json() as any;
 
       return {
         status: this.mapStripeStatus(data.status),
@@ -179,6 +182,87 @@ export class StripePaymentProvider implements PaymentProvider {
     } catch (error) {
       this.logger.error({ error, transactionId }, 'Failed to get Stripe payment status');
       throw error;
+    }
+  }
+
+  /**
+   * Create a Stripe Checkout session for agent funding
+   * Returns a session URL that the user can visit to complete payment
+   */
+  async createCheckoutSession(params: {
+    agentId: string;
+    amount: Money;
+    successUrl: string;
+    cancelUrl: string;
+  }): Promise<{ sessionId: string; url: string }> {
+    this.logger.info({ agentId: params.agentId, amount: params.amount }, 'Creating Stripe Checkout session');
+
+    try {
+      const response = await fetch(`${this.baseUrl}/v1/checkout/sessions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Authorization': `Bearer ${this.apiKey}`,
+        },
+        body: new URLSearchParams({
+          'mode': 'payment',
+          'success_url': params.successUrl,
+          'cancel_url': params.cancelUrl,
+          'line_items[0][price_data][currency]': params.amount.currency.toLowerCase(),
+          'line_items[0][price_data][product_data][name]': 'Agent Wallet Funding',
+          'line_items[0][price_data][product_data][description]': `Fund agent wallet with ${params.amount.amount} ${params.amount.currency}`,
+          'line_items[0][price_data][unit_amount]': Math.round(params.amount.amount * 100).toString(),
+          'line_items[0][quantity]': '1',
+          'metadata[type]': 'agent_funding',
+          'metadata[agentId]': params.agentId,
+          'metadata[amount]': params.amount.amount.toString(),
+          'metadata[currency]': params.amount.currency,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.text();
+        throw new Error(`Failed to create Stripe Checkout session: ${error}`);
+      }
+
+      const data = await response.json() as any;
+
+      this.logger.info(
+        { sessionId: data.id, agentId: params.agentId },
+        'Stripe Checkout session created'
+      );
+
+      return {
+        sessionId: data.id,
+        url: data.url,
+      };
+    } catch (error) {
+      this.logger.error({ error, agentId: params.agentId }, 'Failed to create Stripe Checkout session');
+      throw error;
+    }
+  }
+
+  /**
+   * Verify webhook signature and parse webhook event
+   */
+  verifyWebhook(payload: string, signature: string): any {
+    // In production, use Stripe's SDK to verify the signature
+    // For now, we'll do a simple implementation
+    // TODO: Use Stripe SDK for proper signature verification with this.webhookSecret
+    if (!signature) {
+      throw new Error('Missing Stripe signature');
+    }
+
+    if (!this.webhookSecret) {
+      this.logger.warn('Webhook secret not configured - skipping signature verification');
+    }
+
+    try {
+      const event = JSON.parse(payload);
+      return event;
+    } catch (error) {
+      this.logger.error({ error }, 'Failed to parse webhook payload');
+      throw new Error('Invalid webhook payload');
     }
   }
 

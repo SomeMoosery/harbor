@@ -24,7 +24,7 @@ export function handleError(c: Context, error: unknown, logger: Logger) {
         message: error.message,
         details: error.details,
       },
-      error.statusCode
+      error.statusCode as any
     );
   }
 

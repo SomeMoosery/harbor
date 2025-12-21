@@ -40,4 +40,20 @@ export interface PaymentProvider {
     status: 'pending' | 'completed' | 'failed';
     amount: Money;
   }>;
+
+  /**
+   * Create a checkout session for agent funding
+   * Returns a session URL that the user can visit to complete payment
+   */
+  createCheckoutSession(params: {
+    agentId: string;
+    amount: Money;
+    successUrl: string;
+    cancelUrl: string;
+  }): Promise<{ sessionId: string; url: string }>;
+
+  /**
+   * Verify webhook signature and parse webhook event
+   */
+  verifyWebhook(payload: string, signature: string): any;
 }

@@ -33,21 +33,22 @@ export function createRoutes(env: Environment, connectionString: string, useLoca
   const ledgerEntryResource = new LedgerEntryResource(db, logger);
 
   // Initialize providers
-  // Use mock providers for local, real providers for staging/production
-  const walletProvider = env === 'local'
-    ? new MockWalletProvider(logger)
-    : new CircleWalletProvider(logger, {
+  // Use mock providers or real providers based on config
+  const walletProvider = config.providers.useReal
+    ? new CircleWalletProvider(logger, {
         apiKey: config.circle.apiKey,
         entitySecret: config.circle.entitySecret,
-        isTestnet: env === 'staging',
-      });
+        isTestnet: env !== 'production',
+      })
+    : new MockWalletProvider(logger);
 
-  const paymentProvider = env === 'local'
-    ? new MockPaymentProvider(logger)
-    : new StripePaymentProvider(logger, {
-        apiKey: config.stripe?.apiKey || '',
+  const paymentProvider = config.providers.useReal
+    ? new StripePaymentProvider(logger, {
+        apiKey: config.stripe.apiKey,
+        webhookSecret: config.stripe.webhookSecret,
         isTest: env !== 'production',
-      });
+      })
+    : new MockPaymentProvider(logger);
 
   // Initialize manager and controller
   const manager = new WalletManager(
@@ -83,6 +84,16 @@ export function createRoutes(env: Environment, connectionString: string, useLoca
 
   app.post('/transfer', zValidator('json', transferSchema), async (c) => {
     return controller.transfer(c);
+  });
+
+  // Stripe Checkout for funding agents
+  app.post('/funding/checkout', async (c) => {
+    return controller.createFundingCheckout(c);
+  });
+
+  // Stripe webhook handler
+  app.post('/webhooks/stripe', async (c) => {
+    return controller.handleStripeWebhook(c, paymentProvider);
   });
 
   return app;
