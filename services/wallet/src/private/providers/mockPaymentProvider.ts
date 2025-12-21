@@ -100,4 +100,40 @@ export class MockPaymentProvider implements PaymentProvider {
       amount: payment.amount,
     };
   }
+
+  async createCheckoutSession(params: {
+    agentId: string;
+    amount: Money;
+    successUrl: string;
+    cancelUrl: string;
+  }): Promise<{ sessionId: string; url: string }> {
+    const sessionId = `mock-session-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+
+    this.logger.info(
+      {
+        sessionId,
+        agentId: params.agentId,
+        amount: params.amount,
+      },
+      'Mock checkout session created'
+    );
+
+    // Mock checkout URL - in reality this would be a Stripe-hosted page
+    // For testing, we'll return a URL that points back to the success page
+    return {
+      sessionId,
+      url: `${params.successUrl}?session_id=${sessionId}&mock=true`,
+    };
+  }
+
+  verifyWebhook(payload: string, signature: string): any {
+    // Mock webhook verification - always succeeds
+    this.logger.debug({ signature }, 'Mock webhook verification (always succeeds)');
+
+    try {
+      return JSON.parse(payload);
+    } catch (error) {
+      throw new Error('Invalid webhook payload');
+    }
+  }
 }

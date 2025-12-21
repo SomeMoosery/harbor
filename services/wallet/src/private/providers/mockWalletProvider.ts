@@ -19,7 +19,7 @@ export class MockWalletProvider implements WalletProvider {
     return walletId;
   }
 
-  async getBalance(walletId: string): Promise<Money> {
+  async getBalance(_walletId: string): Promise<Money> {
     // Mock provider doesn't track balances - they come from transactions in the DB
     // Return a placeholder that won't be used
     return {

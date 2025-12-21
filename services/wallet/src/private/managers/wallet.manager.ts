@@ -257,4 +257,153 @@ export class WalletManager {
     await this.walletResource.findById(walletId); // Verify wallet exists
     return this.transactionResource.findByWalletId(walletId, limit);
   }
+
+  /**
+   * Create a Stripe Checkout session for funding an agent's wallet
+   * Returns the checkout URL for the user to complete payment
+   */
+  async createFundingCheckoutSession(params: {
+    agentId: string;
+    amount: Money;
+    successUrl: string;
+    cancelUrl: string;
+  }): Promise<{ sessionId: string; url: string; walletId: string }> {
+    this.logger.info({ agentId: params.agentId, amount: params.amount }, 'Creating funding checkout session');
+
+    // Get or create wallet for the agent
+    let wallet = await this.walletResource.findByAgentId(params.agentId);
+    if (!wallet) {
+      this.logger.info({ agentId: params.agentId }, 'Wallet not found, creating new wallet');
+      wallet = await this.createWallet(params.agentId);
+    }
+
+    // Create checkout session via payment provider
+    const session = await this.paymentProvider.createCheckoutSession({
+      agentId: params.agentId,
+      amount: params.amount,
+      successUrl: params.successUrl,
+      cancelUrl: params.cancelUrl,
+    });
+
+    this.logger.info(
+      { agentId: params.agentId, sessionId: session.sessionId, walletId: wallet.id },
+      'Funding checkout session created'
+    );
+
+    return {
+      ...session,
+      walletId: wallet.id,
+    };
+  }
+
+  /**
+   * Handle Stripe webhook for checkout session completion
+   * This is called when a payment is successfully completed
+   * Implements atomic deposit: Stripe payment -> USDC wallet credit
+   */
+  async handleStripeWebhook(event: any): Promise<{ success: boolean; transactionId?: string }> {
+    this.logger.info({ eventType: event.type }, 'Processing Stripe webhook');
+
+    // Only handle checkout.session.completed events
+    if (event.type !== 'checkout.session.completed') {
+      this.logger.debug({ eventType: event.type }, 'Ignoring non-checkout event');
+      return { success: true };
+    }
+
+    const session = event.data.object;
+    const agentId = session.metadata?.agentId;
+    const amount = parseFloat(session.metadata?.amount || '0');
+    const currency = session.metadata?.currency || 'USDC';
+
+    if (!agentId || !amount) {
+      this.logger.error({ session }, 'Invalid webhook payload: missing agentId or amount');
+      throw new Error('Invalid webhook payload');
+    }
+
+    this.logger.info({ agentId, amount, currency, sessionId: session.id }, 'Processing successful checkout');
+
+    // Get wallet for agent
+    const wallet = await this.walletResource.findByAgentId(agentId);
+    if (!wallet) {
+      this.logger.error({ agentId }, 'Wallet not found for agent in webhook');
+      throw new NotFoundError('Wallet', agentId);
+    }
+
+    // Check if we already processed this session (idempotency)
+    const existingTransaction = await this.transactionResource.findByExternalId(session.id);
+    if (existingTransaction) {
+      this.logger.info(
+        { sessionId: session.id, transactionId: existingTransaction.id },
+        'Webhook already processed (idempotent)'
+      );
+      return { success: true, transactionId: existingTransaction.id };
+    }
+
+    try {
+      // Atomic deposit flow:
+      // 1. Create ledger entry for external→internal reconciliation tracking
+      const ledgerEntry = await this.ledgerEntryResource.createOnrampEntry({
+        agentId: wallet.agentId,
+        walletId: wallet.id,
+        externalProvider: 'stripe',
+        externalTransactionId: session.id,
+        externalAmount: amount,
+        externalCurrency: currency,
+        internalAmount: amount, // 1:1 conversion USD -> USDC
+        internalCurrency: 'USDC',
+        description: `Stripe Checkout funding for agent ${wallet.agentId}`,
+        metadata: {
+          sessionId: session.id,
+          paymentIntentId: session.payment_intent,
+        },
+      });
+
+      // 2. Mark external payment as completed
+      await this.ledgerEntryResource.updateExternalStatus(ledgerEntry.id, 'completed');
+
+      // 3. Create transaction record to credit the wallet
+      const transaction = await this.transactionResource.create({
+        type: 'MINT',
+        toWalletId: wallet.id,
+        amount,
+        currency: 'USDC',
+        status: 'COMPLETED',
+        externalId: session.id,
+        metadata: {
+          stripeSessionId: session.id,
+          paymentIntentId: session.payment_intent,
+          ledgerEntryId: ledgerEntry.id,
+        },
+      });
+
+      // 4. Update ledger entry with internal transaction details
+      await this.ledgerEntryResource.updateInternalStatus(
+        ledgerEntry.id,
+        transaction.id,
+        'completed'
+      );
+
+      // 5. Mark as reconciled since both sides completed
+      await this.ledgerEntryResource.reconcile(
+        ledgerEntry.id,
+        'Auto-reconciled: Stripe checkout payment completed and USDC credited'
+      );
+
+      this.logger.info(
+        {
+          agentId,
+          walletId: wallet.id,
+          transactionId: transaction.id,
+          ledgerEntryId: ledgerEntry.id,
+          sessionId: session.id,
+        },
+        'Stripe webhook processed successfully - funds credited'
+      );
+
+      return { success: true, transactionId: transaction.id };
+    } catch (error) {
+      this.logger.error({ error, agentId, sessionId: session.id }, 'Failed to process Stripe webhook');
+      throw error;
+    }
+  }
 }

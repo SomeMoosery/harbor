@@ -1,9 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 const USER_SERVICE_URL = 'http://localhost:3002';
 const WALLET_SERVICE_URL = 'http://localhost:3003';
 
-type Tab = 'users' | 'agents' | 'api-keys' | 'wallets' | 'deposits';
+type Tab = 'users' | 'agents' | 'api-keys' | 'wallets' | 'fund-agent';
 
 interface User {
   id: string;
@@ -48,14 +48,38 @@ function App() {
   // Wallet form
   const [walletAgentId, setWalletAgentId] = useState('');
 
-  // Deposit form
-  const [depositWalletId, setDepositWalletId] = useState('');
-  const [depositAmount, setDepositAmount] = useState('100');
+  // Fund Agent form
+  const [fundAgentId, setFundAgentId] = useState('');
+  const [fundAmount, setFundAmount] = useState('100');
 
   const clearMessage = () => {
     setMessage(null);
     setCreatedData(null);
   };
+
+  // Check for funding success/cancelled from Stripe redirect
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const funding = params.get('funding');
+
+    if (funding === 'success') {
+      setMessage({
+        type: 'success',
+        text: 'Payment successful! Funds will be credited to the agent wallet shortly.'
+      });
+      setActiveTab('fund-agent');
+      // Clear URL params
+      window.history.replaceState({}, '', window.location.pathname);
+    } else if (funding === 'cancelled') {
+      setMessage({
+        type: 'error',
+        text: 'Payment cancelled. No charges were made.'
+      });
+      setActiveTab('fund-agent');
+      // Clear URL params
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, []);
 
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -167,29 +191,36 @@ function App() {
     }
   };
 
-  const handleDeposit = async (e: React.FormEvent) => {
+  const handleFundAgent = async (e: React.FormEvent) => {
     e.preventDefault();
     clearMessage();
 
     try {
-      const response = await fetch(`${WALLET_SERVICE_URL}/deposits`, {
+      const currentUrl = window.location.origin;
+      const response = await fetch(`${WALLET_SERVICE_URL}/funding/checkout`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          walletId: depositWalletId,
-          amount: parseFloat(depositAmount),
-          currency: 'USDC',
+          agentId: fundAgentId,
+          amount: fundAmount,
+          successUrl: `${currentUrl}?funding=success`,
+          cancelUrl: `${currentUrl}?funding=cancelled`,
         }),
       });
 
       if (!response.ok) {
         const error = await response.json();
-        throw new Error(error.message || 'Failed to deposit funds');
+        throw new Error(error.message || 'Failed to create checkout session');
       }
 
       const result = await response.json();
-      setMessage({ type: 'success', text: 'Funds deposited successfully!' });
+      setMessage({ type: 'success', text: 'Redirecting to Stripe Checkout...' });
       setCreatedData(result);
+
+      // Redirect to Stripe Checkout
+      setTimeout(() => {
+        window.location.href = result.url;
+      }, 1000);
     } catch (error) {
       setMessage({ type: 'error', text: error instanceof Error ? error.message : 'Unknown error' });
     }
@@ -228,10 +259,10 @@ function App() {
           Wallets
         </button>
         <button
-          className={`tab ${activeTab === 'deposits' ? 'active' : ''}`}
-          onClick={() => setActiveTab('deposits')}
+          className={`tab ${activeTab === 'fund-agent' ? 'active' : ''}`}
+          onClick={() => setActiveTab('fund-agent')}
         >
-          Deposits
+          Fund Agent
         </button>
       </div>
 
@@ -382,34 +413,41 @@ function App() {
         </div>
       )}
 
-      {activeTab === 'deposits' && (
+      {activeTab === 'fund-agent' && (
         <div className="section">
-          <h2>Deposit Funds</h2>
-          <form className="form" onSubmit={handleDeposit}>
+          <h2>Fund Agent Wallet</h2>
+          <p style={{ marginBottom: '1rem', color: '#666' }}>
+            Fund an agent's wallet using Stripe Checkout. Payment will be converted to USDC 1:1.
+          </p>
+          <form className="form" onSubmit={handleFundAgent}>
             <div className="form-group">
-              <label htmlFor="depositWalletId">Wallet ID</label>
+              <label htmlFor="fundAgentId">Agent ID</label>
               <input
-                id="depositWalletId"
+                id="fundAgentId"
                 type="text"
-                value={depositWalletId}
-                onChange={(e) => setDepositWalletId(e.target.value)}
+                value={fundAgentId}
+                onChange={(e) => setFundAgentId(e.target.value)}
                 required
-                placeholder="wallet-uuid"
+                placeholder="agent-uuid"
               />
             </div>
             <div className="form-group">
-              <label htmlFor="depositAmount">Amount (USDC)</label>
+              <label htmlFor="fundAmount">Amount (USD)</label>
               <input
-                id="depositAmount"
+                id="fundAmount"
                 type="number"
                 step="0.01"
-                value={depositAmount}
-                onChange={(e) => setDepositAmount(e.target.value)}
+                min="1"
+                value={fundAmount}
+                onChange={(e) => setFundAmount(e.target.value)}
                 required
                 placeholder="100"
               />
+              <small style={{ color: '#666', marginTop: '0.5rem', display: 'block' }}>
+                Will be converted to USDC 1:1 in the agent's wallet
+              </small>
             </div>
-            <button type="submit">Deposit Funds</button>
+            <button type="submit">Continue to Stripe Checkout</button>
           </form>
         </div>
       )}

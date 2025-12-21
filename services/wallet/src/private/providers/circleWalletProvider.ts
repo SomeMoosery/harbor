@@ -36,35 +36,79 @@ export class CircleWalletProvider implements WalletProvider {
     this.logger.info({ agentId }, 'Creating Circle wallet');
 
     try {
-      // TODO: Integrate with Circle MCP server if available
-      // For now, using direct Circle API calls
+      // Step 1: Create wallet set for this agent
+      const walletSetIdempotencyKey = `walletset-${agentId}`;
 
-      const response = await fetch(`${this.baseUrl}/v1/w3s/developer/wallets`, {
+      this.logger.debug({ agentId }, 'Creating wallet set');
+      const walletSetResponse = await fetch(`${this.baseUrl}/v1/w3s/developer/walletSets`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${this.apiKey}`,
         },
         body: JSON.stringify({
-          idempotencyKey: `wallet-${agentId}-${Date.now()}`,
+          idempotencyKey: walletSetIdempotencyKey,
+          name: `Agent ${agentId} Wallet Set`,
           entitySecretCiphertext: this.entitySecret,
-          walletSetId: process.env.CIRCLE_WALLET_SET_ID || 'default',
-          metadata: {
-            agentId,
-            createdAt: new Date().toISOString(),
-          },
         }),
       });
 
-      if (!response.ok) {
-        const error = await response.text();
+      if (!walletSetResponse.ok) {
+        const error = await walletSetResponse.text();
+        throw new Error(`Failed to create Circle wallet set: ${error}`);
+      }
+
+      const walletSetData = await walletSetResponse.json() as any;
+      const walletSetId = walletSetData.data?.walletSet?.id;
+
+      if (!walletSetId) {
+        throw new Error('Failed to get wallet set ID from Circle response');
+      }
+
+      this.logger.info({ agentId, walletSetId }, 'Wallet set created');
+
+      // Step 2: Create wallet in the wallet set
+      const walletIdempotencyKey = `wallet-${agentId}`;
+
+      this.logger.debug({ agentId, walletSetId }, 'Creating wallet');
+      const walletResponse = await fetch(`${this.baseUrl}/v1/w3s/developer/wallets`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${this.apiKey}`,
+        },
+        body: JSON.stringify({
+          idempotencyKey: walletIdempotencyKey,
+          accountType: 'SCA',
+          blockchains: ['ETH-SEPOLIA'], // Use Sepolia testnet
+          count: 1,
+          entitySecretCiphertext: this.entitySecret,
+          walletSetId: walletSetId,
+        }),
+      });
+
+      if (!walletResponse.ok) {
+        const error = await walletResponse.text();
         throw new Error(`Failed to create Circle wallet: ${error}`);
       }
 
-      const data = await response.json();
-      const walletId = data.data.walletId;
+      const walletData = await walletResponse.json() as any;
+      const wallets = walletData.data?.wallets;
 
-      this.logger.info({ agentId, walletId }, 'Circle wallet created successfully');
+      if (!wallets || wallets.length === 0) {
+        throw new Error('No wallets returned from Circle');
+      }
+
+      const wallet = wallets[0];
+      const walletId = wallet.id;
+      const walletAddress = wallet.address;
+
+      this.logger.info(
+        { agentId, walletId, walletAddress, blockchain: 'ETH-SEPOLIA' },
+        'Circle wallet created successfully'
+      );
+
+      // Return wallet ID (we'll need to store the address separately)
       return walletId;
     } catch (error) {
       this.logger.error({ error, agentId }, 'Failed to create Circle wallet');
@@ -87,7 +131,7 @@ export class CircleWalletProvider implements WalletProvider {
         throw new Error(`Failed to get Circle wallet balance: ${error}`);
       }
 
-      const data = await response.json();
+      const data = await response.json() as any;
 
       // Find USDC balance
       const usdcBalance = data.data.tokenBalances.find(
@@ -131,7 +175,7 @@ export class CircleWalletProvider implements WalletProvider {
         throw new Error(`Failed to transfer via Circle: ${error}`);
       }
 
-      const data = await response.json();
+      const data = await response.json() as any;
       const transactionId = data.data.id;
 
       this.logger.info({ fromWalletId, toWalletId, transactionId }, 'Circle transfer initiated');
@@ -160,7 +204,7 @@ export class CircleWalletProvider implements WalletProvider {
         throw new Error(`Failed to get Circle wallet: ${error}`);
       }
 
-      const walletData = await walletResponse.json();
+      const walletData = await walletResponse.json() as any;
 
       return {
         id: walletId,

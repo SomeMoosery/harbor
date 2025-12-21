@@ -113,6 +113,53 @@ export class WalletController {
     }
   }
 
+  async createFundingCheckout(c: Context) {
+    try {
+      const body = await c.req.json();
+      const { agentId, amount, successUrl, cancelUrl } = body;
+
+      if (!agentId || !amount || !successUrl || !cancelUrl) {
+        return c.json({ error: 'Missing required fields' }, 400);
+      }
+
+      const session = await this.manager.createFundingCheckoutSession({
+        agentId,
+        amount: {
+          amount: parseFloat(amount),
+          currency: 'USD', // Stripe payment in USD
+        },
+        successUrl,
+        cancelUrl,
+      });
+
+      return c.json(session, 201);
+    } catch (error) {
+      return handleError(c, error, this.logger);
+    }
+  }
+
+  async handleStripeWebhook(c: Context, paymentProvider: any) {
+    try {
+      const signature = c.req.header('stripe-signature');
+      if (!signature) {
+        return c.json({ error: 'Missing Stripe signature' }, 400);
+      }
+
+      const rawBody = await c.req.text();
+
+      // Verify webhook signature
+      const event = paymentProvider.verifyWebhook(rawBody, signature);
+
+      // Process the webhook
+      const result = await this.manager.handleStripeWebhook(event);
+
+      return c.json(result);
+    } catch (error) {
+      this.logger.error({ error }, 'Failed to process Stripe webhook');
+      return handleError(c, error, this.logger);
+    }
+  }
+
   async health(c: Context) {
     return c.json({ status: 'ok', service: 'wallet' });
   }

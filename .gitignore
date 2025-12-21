@@ -54,6 +54,9 @@ temp/
 *.tmp
 .cache/
 
+# Scripts
+scripts/setup/
+
 # OS
 .DS_Store
 .DS_Store?

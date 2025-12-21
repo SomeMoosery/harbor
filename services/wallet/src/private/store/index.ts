@@ -1,10 +1,9 @@
-import { drizzle } from 'drizzle-orm/postgres-js';
 import type { Logger } from '@harbor/logger';
 import type { Environment } from '@harbor/config';
 import { createLocalDb } from './local-db.js';
 import { createProductionDb, closeProductionDb } from './production-db.js';
 
-let db: ReturnType<typeof drizzle> | null = null;
+let db: any = null;
 
 /**
  * Get database instance based on environment
@@ -12,7 +11,7 @@ let db: ReturnType<typeof drizzle> | null = null;
  * - local: In-memory PostgreSQL (pg-mem)
  * - staging/production: Real PostgreSQL (Cloud SQL, RDS, etc.)
  */
-export function getDb(env: Environment, connectionString: string, useLocalPostgres: boolean, logger: Logger): ReturnType<typeof drizzle> {
+export function getDb(env: Environment, connectionString: string, useLocalPostgres: boolean, logger: Logger) {
   if (db) {
     return db;
   }

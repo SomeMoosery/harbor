@@ -67,10 +67,24 @@ export class TransactionResource {
       .orderBy(desc(transactions.createdAt))
       .limit(limit);
 
-    return transactionRows.map(row => {
+    return transactionRows.map((row: any) => {
       const record = this.rowToRecord(row);
       return this.recordToTransaction(record);
     });
+  }
+
+  async findByExternalId(externalId: string): Promise<Transaction | null> {
+    const [transactionRow] = await this.db
+      .select()
+      .from(transactions)
+      .where(eq(transactions.externalId, externalId));
+
+    if (!transactionRow) {
+      return null;
+    }
+
+    const record = this.rowToRecord(transactionRow);
+    return this.recordToTransaction(record);
   }
 
   async updateStatus(id: string, status: TransactionStatus): Promise<Transaction> {

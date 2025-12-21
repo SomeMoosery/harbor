@@ -31,6 +31,11 @@ export interface Config {
 
   stripe: {
     apiKey: string;
+    webhookSecret: string;
+  };
+
+  providers: {
+    useReal: boolean; // Toggle between mock and real providers
   };
 
   fees: {
@@ -66,6 +71,11 @@ export function createConfig(serviceName: string, defaultPort: number): Config {
 
     stripe: {
       apiKey: process.env.STRIPE_API_KEY ?? '',
+      webhookSecret: process.env.STRIPE_WEBHOOK_SECRET ?? '',
+    },
+
+    providers: {
+      useReal: process.env.USE_REAL_PROVIDERS === 'true',
     },
 
     fees: {
