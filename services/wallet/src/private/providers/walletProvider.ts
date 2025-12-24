@@ -29,4 +29,9 @@ export interface WalletProvider {
     balance: Money;
     status: string;
   }>;
+
+  /**
+   * Mint funds
+   */
+  fundWallet(toWalletId: string, amount: Money): Promise<Money>;
 }

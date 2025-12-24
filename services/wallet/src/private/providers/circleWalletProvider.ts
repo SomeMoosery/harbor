@@ -16,6 +16,7 @@ export class CircleWalletProvider implements WalletProvider {
   private apiKey: string;
   private entitySecret: string;
   private baseUrl: string;
+  private isTestnet: boolean;
 
   constructor(
     private logger: Logger,
@@ -30,6 +31,7 @@ export class CircleWalletProvider implements WalletProvider {
     this.baseUrl = config.isTestnet
       ? 'https://api-sandbox.circle.com'
       : 'https://api.circle.com';
+    this.isTestnet = config.isTestnet || true;
   }
 
   async createWallet(agentId: string): Promise<string> {
@@ -215,5 +217,18 @@ export class CircleWalletProvider implements WalletProvider {
       this.logger.error({ error, walletId }, 'Failed to get Circle wallet details');
       throw error;
     }
+  }
+
+  async fundWallet(toWalletId: string, amount: Money): Promise<Money> {
+    if (this.isTestnet) {
+      throw new Error("[NOT IMPLMENTED] Funding wallets is currently only available in testnet");
+    }
+
+    // TODO we shouldn't have a column circle_wallet_id
+
+    // TODO actually send from Circle
+    // Get wallet address from wallet ID 
+    
+    return amount;
   }
 }
