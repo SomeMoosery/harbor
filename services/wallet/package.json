@@ -12,10 +12,13 @@
     "build": "tsc --build",
     "start": "node dist/main.js",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate",
+    "db:migrate": "tsx scripts/run-migrations.ts",
+    "db:check": "tsx scripts/check-db.ts",
+    "circle:register": "tsx scripts/register-entity-secret.ts",
     "clean": "rm -rf dist"
   },
   "dependencies": {
+    "@circle-fin/developer-controlled-wallets": "^9.6.0",
     "@harbor/config": "workspace:*",
     "@harbor/db": "workspace:*",
     "@harbor/errors": "workspace:*",

@@ -39,7 +39,7 @@ export function createRoutes(env: Environment, connectionString: string, useLoca
         apiKey: config.circle.apiKey,
         entitySecret: config.circle.entitySecret,
         isTestnet: env !== 'production',
-      })
+      }, walletResource)
     : new MockWalletProvider(logger);
 
   const paymentProvider = config.providers.useReal

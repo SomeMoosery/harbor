@@ -5,6 +5,7 @@ export interface WalletRecord {
   id: string;
   agentId: string;
   circleWalletId?: string;
+  walletAddress?: string;
   status: WalletStatus;
   createdAt: Temporal.ZonedDateTime;
   updatedAt: Temporal.ZonedDateTime;
