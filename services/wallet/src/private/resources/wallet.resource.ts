@@ -124,7 +124,7 @@ export class WalletResource {
       id: record.id,
       agentId: record.agentId,
       circleWalletId: record.circleWalletId,
-      walletAddress: record.walletAddress,
+      walletAddress: record.walletAddress || '', // TODO shouldn't be nullable...
       status: record.status,
       createdAt: record.createdAt,
       updatedAt: record.updatedAt,

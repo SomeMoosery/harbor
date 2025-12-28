@@ -32,7 +32,7 @@ export class CircleWalletProvider implements WalletProvider {
     private logger: Logger,
     config: {
       apiKey: string;
-      entitySecret: string; // Raw entity secret for SDK client initialization
+      entitySecret: string;
       isTestnet?: boolean;
     },
     walletResource: WalletResource
@@ -42,8 +42,6 @@ export class CircleWalletProvider implements WalletProvider {
     this.isTestnet = config.isTestnet || true;
     this.walletResource = walletResource;
 
-    // Initialize Circle SDK client - handles entity secret encryption automatically
-    // Force production URL since TEST_API_KEY works with production, not sandbox
     this.client = initiateDeveloperControlledWalletsClient({
       apiKey: config.apiKey,
       entitySecret: config.entitySecret,
@@ -74,7 +72,7 @@ export class CircleWalletProvider implements WalletProvider {
       const walletResponse = await this.client.createWallets({
         idempotencyKey: agentId,
         accountType: 'SCA',
-        blockchains: ['ETH-SEPOLIA'], // Use Sepolia testnet
+        blockchains: ['BASE-SEPOLIA'],
         count: 1,
         walletSetId: walletSetId,
       });
@@ -94,14 +92,13 @@ export class CircleWalletProvider implements WalletProvider {
       const walletAddress = wallet.address;
 
       this.logger.info(
-        { agentId, walletId, walletAddress, blockchain: 'ETH-SEPOLIA' },
+        { agentId, walletId, walletAddress, blockchain: 'BASE-SEPOLIA	' },
         'Circle wallet created successfully'
       );
 
       // Return wallet ID and address
       return { walletId, walletAddress };
     } catch (error: any) {
-      // Log detailed error information including Circle's response
       const errorDetails: any = {
         error,
         agentId,
@@ -129,7 +126,6 @@ export class CircleWalletProvider implements WalletProvider {
         return { amount: 0, currency: 'USDC' };
       }
 
-      // Convert from decimal string to Money
       return fromDecimalString(usdcBalance.amount, 'USDC');
     } catch (error) {
       this.logger.error({ error, walletId }, 'Failed to get Circle wallet balance');
@@ -141,11 +137,7 @@ export class CircleWalletProvider implements WalletProvider {
     this.logger.info({ fromWalletId, toWalletId, amount }, 'Initiating Circle wallet transfer');
 
     try {
-      // Note: Using direct API call for wallet-to-wallet transfers.
-      // The SDK's createTransaction is designed for outbound blockchain transactions.
-      // The /v1/w3s/developer/transactions/transfer endpoint is specific to internal wallet transfers.
-
-      // Generate fresh entity secret ciphertext for this operation
+      // TODO: use the Circle client for this (https://developers.circle.com/wallets/dev-controlled/transfer-tokens-across-wallets)
       const entitySecretCiphertext = await generateEntitySecretCiphertext({
         apiKey: this.apiKey,
         entitySecret: this.entitySecret,
@@ -223,9 +215,10 @@ export class CircleWalletProvider implements WalletProvider {
       }
 
       // Request testnet USDC tokens from Circle SDK
+      // TODO is there a way to request >1 or just specify an amount?
       await this.client.requestTestnetTokens({
         address: wallet.walletAddress,
-        blockchain: 'ETH-SEPOLIA',
+        blockchain: 'BASE-SEPOLIA',
         usdc: true,
         native: false,
         eurc: false,
