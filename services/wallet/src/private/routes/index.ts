@@ -92,6 +92,7 @@ export function createRoutes(env: Environment, connectionString: string, useLoca
   });
 
   // Stripe webhook handler
+  // TODO should make this generic?
   app.post('/webhooks/stripe', async (c) => {
     return controller.handleStripeWebhook(c, paymentProvider);
   });

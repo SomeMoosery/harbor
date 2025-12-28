@@ -8,7 +8,7 @@ import type { PaymentProvider } from '../providers/paymentProvider.js';
 import { Wallet } from '../../public/model/wallet.js';
 import { Transaction } from '../../public/model/transaction.js';
 import { Balance } from '../../public/model/balance.js';
-import type { Money } from '../../public/model/money.js';
+import { fromMinorUnits, type Money } from '../../public/model/money.js';
 
 /**
  * WalletManager orchestrates wallet operations and maintains double-entry ledger
@@ -134,9 +134,9 @@ export class WalletManager {
       walletId: walletId,
       externalProvider: 'stripe',
       externalTransactionId: paymentResult.transactionId,
-      externalAmount: amount.amount,
+      externalAmount: amount,
       externalCurrency: amount.currency,
-      internalAmount: amount.amount, // Assuming 1:1 for USDC
+      internalAmount: amount,
       internalCurrency: 'USDC',
       description: `Deposit via Stripe for agent ${wallet.agentId}`,
       metadata: {
@@ -156,7 +156,7 @@ export class WalletManager {
     const transaction = await this.transactionResource.create({
       type: 'MINT',
       toWalletId: walletId,
-      amount: amount.amount,
+      amount: amount,
       currency: 'USDC',
       status: paymentResult.status === 'completed' ? 'COMPLETED' : 'PENDING',
       externalId: paymentResult.transactionId,
@@ -215,7 +215,7 @@ export class WalletManager {
       type: 'TRANSFER',
       fromWalletId,
       toWalletId,
-      amount: amount.amount,
+      amount: amount,
       currency: amount.currency,
       status: 'PENDING',
     });
@@ -313,7 +313,8 @@ export class WalletManager {
 
     const session = event.data.object;
     const agentId = session.metadata?.agentId;
-    const amount = parseFloat(session.metadata?.amount || '0');
+    // Stripe payments come in in cents, so we want to convert to dollars
+    const amount: Money = fromMinorUnits(parseFloat(session.metadata?.amount || '0'));
     const currency = session.metadata?.currency || 'USDC';
 
     if (!agentId || !amount) {
@@ -367,7 +368,7 @@ export class WalletManager {
 
       // Mint funds to the wallet
       // TODO if we switch to using Bridge vs Stripe, we might need to change this ordering a bit
-      this.walletProvider.fundWallet(wallet.id, {amount: amount, currency: currency});
+      this.walletProvider.fundWallet(wallet.id, amount);
 
       // Create transaction record to credit the wallet
       const transaction = await this.transactionResource.create({

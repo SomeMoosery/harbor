@@ -4,6 +4,7 @@ import { Temporal } from 'temporal-polyfill';
 import { getDb, ledgerEntries, type LedgerEntryRow } from '../store/index.js';
 import { LedgerEntry, LedgerEntryType, LedgerEntryStatus } from '../../public/model/ledgerEntry.js';
 import { LedgerEntryRecord } from '../records/ledgerEntryRecord.js';
+import { Money } from '../../public/model/money.js';
 
 export class LedgerEntryResource {
   constructor(
@@ -19,12 +20,12 @@ export class LedgerEntryResource {
     walletId: string;
     externalProvider: string;
     externalTransactionId: string;
-    externalAmount: number;
+    externalAmount: Money;
     externalCurrency: string;
-    internalAmount: number;
+    internalAmount: Money;
     internalCurrency: string;
-    platformFee?: number;
-    externalProviderFee?: number;
+    platformFee?: Money;
+    externalProviderFee?: Money;
     description: string;
     metadata?: Record<string, unknown>;
   }): Promise<LedgerEntry> {
@@ -39,12 +40,12 @@ export class LedgerEntryResource {
         status: 'PENDING',
         externalProvider: data.externalProvider,
         externalTransactionId: data.externalTransactionId,
-        externalAmount: data.externalAmount,
+        externalAmount: data.externalAmount.amount,
         externalCurrency: data.externalCurrency,
-        internalAmount: data.internalAmount,
+        internalAmount: data.internalAmount.amount,
         internalCurrency: data.internalCurrency,
-        platformFee: data.platformFee ?? 0,
-        externalProviderFee: data.externalProviderFee ?? 0,
+        platformFee: data.platformFee?.amount ?? 0,
+        externalProviderFee: data.externalProviderFee?.amount ?? 0,
         description: data.description,
         metadata: data.metadata,
       })

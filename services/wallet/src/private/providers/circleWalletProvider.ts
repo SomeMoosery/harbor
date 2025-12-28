@@ -1,6 +1,7 @@
 import type { Logger } from '@harbor/logger';
 import type { WalletProvider } from './walletProvider.js';
 import type { Money } from '../../public/model/money.js';
+import { toDecimalString, fromDecimalString } from '../../public/model/money.js';
 import { WalletResource } from '../resources/wallet.resource.js';
 import { Wallet } from '../../public/model/wallet.js';
 import { randomUUID } from 'crypto';
@@ -124,12 +125,12 @@ export class CircleWalletProvider implements WalletProvider {
         (balance: any) => balance.token.symbol === 'USDC'
       );
 
-      const amount = usdcBalance ? parseFloat(usdcBalance.amount) : 0;
+      if (!usdcBalance) {
+        return { amount: 0, currency: 'USDC' };
+      }
 
-      return {
-        amount,
-        currency: 'USDC',
-      };
+      // Convert from decimal string to Money
+      return fromDecimalString(usdcBalance.amount, 'USDC');
     } catch (error) {
       this.logger.error({ error, walletId }, 'Failed to get Circle wallet balance');
       throw error;
@@ -161,7 +162,7 @@ export class CircleWalletProvider implements WalletProvider {
           entitySecretCiphertext,
           sourceWalletId: fromWalletId,
           destinationWalletId: toWalletId,
-          amounts: [`${amount.amount}`],
+          amounts: [toDecimalString(amount)],
           tokenId: process.env.CIRCLE_USDC_TOKEN_ID || 'USDC',
         }),
       });
