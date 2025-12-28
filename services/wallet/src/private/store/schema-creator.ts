@@ -18,6 +18,7 @@ export async function createWalletSchema(db: any, logger: Logger): Promise<void>
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         agent_id TEXT NOT NULL UNIQUE,
         circle_wallet_id TEXT,
+        wallet_address TEXT,
         status TEXT NOT NULL DEFAULT 'ACTIVE' CHECK (status IN ('ACTIVE', 'SUSPENDED', 'CLOSED')),
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),

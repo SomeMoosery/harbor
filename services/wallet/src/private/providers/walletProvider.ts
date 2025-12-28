@@ -7,9 +7,9 @@ import type { Money } from '../../public/model/money.js';
 export interface WalletProvider {
   /**
    * Create a new wallet for an agent
-   * Returns the provider's wallet ID
+   * Returns the provider's wallet ID and address
    */
-  createWallet(agentId: string): Promise<string>;
+  createWallet(agentId: string): Promise<{ walletId: string; walletAddress: string }>;
 
   /**
    * Get wallet balance
@@ -29,4 +29,9 @@ export interface WalletProvider {
     balance: Money;
     status: string;
   }>;
+
+  /**
+   * Mint funds
+   */
+  fundWallet(toWalletId: string, amount: Money): Promise<Money>;
 }

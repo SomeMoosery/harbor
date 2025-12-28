@@ -8,7 +8,7 @@ import type { PaymentProvider } from '../providers/paymentProvider.js';
 import { Wallet } from '../../public/model/wallet.js';
 import { Transaction } from '../../public/model/transaction.js';
 import { Balance } from '../../public/model/balance.js';
-import type { Money } from '../../public/model/money.js';
+import { fromMinorUnits, type Money } from '../../public/model/money.js';
 
 /**
  * WalletManager orchestrates wallet operations and maintains double-entry ledger
@@ -21,7 +21,7 @@ export class WalletManager {
     private readonly walletProvider: WalletProvider,
     private readonly paymentProvider: PaymentProvider,
     private readonly logger: Logger
-  ) {}
+  ) { }
 
   /**
    * Create a new wallet for an agent
@@ -36,16 +36,17 @@ export class WalletManager {
     }
 
     // Create wallet via provider (Circle)
-    const circleWalletId = await this.walletProvider.createWallet(agentId);
+    const { walletId: circleWalletId, walletAddress } = await this.walletProvider.createWallet(agentId);
 
     // Store in database
     const wallet = await this.walletResource.create({
       agentId,
       circleWalletId,
+      walletAddress,
       status: 'ACTIVE',
     });
 
-    this.logger.info({ agentId, walletId: wallet.id, circleWalletId }, 'Wallet created successfully');
+    this.logger.info({ agentId, walletId: wallet.id, circleWalletId, walletAddress }, 'Wallet created successfully');
     return wallet;
   }
 
@@ -116,7 +117,7 @@ export class WalletManager {
 
     const wallet = await this.walletResource.findById(walletId);
 
-    // 1. Process Stripe payment
+    // Process Stripe payment
     const paymentResult = await this.paymentProvider.processDeposit(
       paymentMethodId,
       amount,
@@ -127,15 +128,15 @@ export class WalletManager {
       throw new Error('Payment failed');
     }
 
-    // 2. Create ledger entry for external→internal reconciliation tracking
+    // Create ledger entry for external→internal reconciliation tracking
     const ledgerEntry = await this.ledgerEntryResource.createOnrampEntry({
       agentId: wallet.agentId,
       walletId: walletId,
       externalProvider: 'stripe',
       externalTransactionId: paymentResult.transactionId,
-      externalAmount: amount.amount,
+      externalAmount: amount,
       externalCurrency: amount.currency,
-      internalAmount: amount.amount, // Assuming 1:1 for USDC
+      internalAmount: amount,
       internalCurrency: 'USDC',
       description: `Deposit via Stripe for agent ${wallet.agentId}`,
       metadata: {
@@ -143,7 +144,7 @@ export class WalletManager {
       },
     });
 
-    // 3. Update ledger entry with external completion status
+    // Update ledger entry with external completion status
     if (paymentResult.status === 'completed') {
       await this.ledgerEntryResource.updateExternalStatus(
         ledgerEntry.id,
@@ -151,11 +152,11 @@ export class WalletManager {
       );
     }
 
-    // 4. Create transaction record for internal wallet
+    // Create transaction record for internal wallet
     const transaction = await this.transactionResource.create({
       type: 'MINT',
       toWalletId: walletId,
-      amount: amount.amount,
+      amount: amount,
       currency: 'USDC',
       status: paymentResult.status === 'completed' ? 'COMPLETED' : 'PENDING',
       externalId: paymentResult.transactionId,
@@ -166,7 +167,7 @@ export class WalletManager {
       },
     });
 
-    // 5. Update ledger entry with internal transaction details
+    // Update ledger entry with internal transaction details
     if (paymentResult.status === 'completed') {
       await this.ledgerEntryResource.updateInternalStatus(
         ledgerEntry.id,
@@ -174,7 +175,7 @@ export class WalletManager {
         'completed'
       );
 
-      // 6. Mark as reconciled since both sides completed
+      // Mark as reconciled since both sides completed
       await this.ledgerEntryResource.reconcile(
         ledgerEntry.id,
         'Auto-reconciled: Both Stripe payment and USDC mint completed successfully'
@@ -214,7 +215,7 @@ export class WalletManager {
       type: 'TRANSFER',
       fromWalletId,
       toWalletId,
-      amount: amount.amount,
+      amount: amount,
       currency: amount.currency,
       status: 'PENDING',
     });
@@ -312,7 +313,8 @@ export class WalletManager {
 
     const session = event.data.object;
     const agentId = session.metadata?.agentId;
-    const amount = parseFloat(session.metadata?.amount || '0');
+    // Stripe payments come in in cents, so we want to convert to dollars
+    const amount: Money = fromMinorUnits(parseFloat(session.metadata?.amount || '0'));
     const currency = session.metadata?.currency || 'USDC';
 
     if (!agentId || !amount) {
@@ -329,7 +331,10 @@ export class WalletManager {
       throw new NotFoundError('Wallet', agentId);
     }
 
+    this.logger.info(`Got wallet for agent that funds were purchased for: ${wallet}`);
+
     // Check if we already processed this session (idempotency)
+    // TODO better idempotency - need an idempotency key
     const existingTransaction = await this.transactionResource.findByExternalId(session.id);
     if (existingTransaction) {
       this.logger.info(
@@ -341,7 +346,7 @@ export class WalletManager {
 
     try {
       // Atomic deposit flow:
-      // 1. Create ledger entry for external→internal reconciliation tracking
+      // Create ledger entry for external→internal reconciliation tracking
       const ledgerEntry = await this.ledgerEntryResource.createOnrampEntry({
         agentId: wallet.agentId,
         walletId: wallet.id,
@@ -358,10 +363,14 @@ export class WalletManager {
         },
       });
 
-      // 2. Mark external payment as completed
+      // Mark external payment as completed
       await this.ledgerEntryResource.updateExternalStatus(ledgerEntry.id, 'completed');
 
-      // 3. Create transaction record to credit the wallet
+      // Mint funds to the wallet
+      // TODO if we switch to using Bridge vs Stripe, we might need to change this ordering a bit
+      this.walletProvider.fundWallet(wallet.id, amount);
+
+      // Create transaction record to credit the wallet
       const transaction = await this.transactionResource.create({
         type: 'MINT',
         toWalletId: wallet.id,
@@ -376,14 +385,14 @@ export class WalletManager {
         },
       });
 
-      // 4. Update ledger entry with internal transaction details
+      // Update ledger entry with internal transaction details
       await this.ledgerEntryResource.updateInternalStatus(
         ledgerEntry.id,
         transaction.id,
         'completed'
       );
 
-      // 5. Mark as reconciled since both sides completed
+      // Mark as reconciled since both sides completed
       await this.ledgerEntryResource.reconcile(
         ledgerEntry.id,
         'Auto-reconciled: Stripe checkout payment completed and USDC credited'

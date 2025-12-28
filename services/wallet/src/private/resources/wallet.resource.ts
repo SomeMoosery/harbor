@@ -15,6 +15,7 @@ export class WalletResource {
   async create(data: {
     agentId: string;
     circleWalletId?: string;
+    walletAddress?: string;
     status?: WalletStatus;
   }): Promise<Wallet> {
     this.logger.info({ data }, 'Creating wallet');
@@ -24,6 +25,7 @@ export class WalletResource {
       .values({
         agentId: data.agentId,
         circleWalletId: data.circleWalletId,
+        walletAddress: data.walletAddress,
         status: data.status || 'ACTIVE',
       })
       .returning();
@@ -109,6 +111,7 @@ export class WalletResource {
       id: row.id,
       agentId: row.agentId,
       circleWalletId: row.circleWalletId || undefined,
+      walletAddress: row.walletAddress || undefined,
       status: row.status as WalletStatus,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
@@ -121,6 +124,7 @@ export class WalletResource {
       id: record.id,
       agentId: record.agentId,
       circleWalletId: record.circleWalletId,
+      walletAddress: record.walletAddress || '', // TODO shouldn't be nullable...
       status: record.status,
       createdAt: record.createdAt,
       updatedAt: record.updatedAt,

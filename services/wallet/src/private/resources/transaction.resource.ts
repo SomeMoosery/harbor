@@ -5,6 +5,7 @@ import { getDb, transactions, type TransactionRow } from '../store/index.js';
 import { Transaction, TransactionType, TransactionStatus } from '../../public/model/transaction.js';
 import { TransactionRecord } from '../records/transactionRecord.js';
 import { Temporal } from 'temporal-polyfill';
+import { Money } from '../../public/model/money.js';
 
 export class TransactionResource {
   constructor(
@@ -16,7 +17,7 @@ export class TransactionResource {
     type: TransactionType;
     fromWalletId?: string;
     toWalletId?: string;
-    amount: number;
+    amount: Money;
     currency: string;
     status?: TransactionStatus;
     externalId?: string;
@@ -27,8 +28,14 @@ export class TransactionResource {
     const [transactionRow] = await this.db
       .insert(transactions)
       .values({
-        ...data,
+        type: data.type,
+        fromWalletId: data.fromWalletId,
+        toWalletId: data.toWalletId,
+        amount: data.amount.amount,
+        currency: data.currency,
         status: data.status || 'PENDING',
+        externalId: data.externalId,
+        metadata: data.metadata,
       })
       .returning();
 
@@ -108,12 +115,14 @@ export class TransactionResource {
   }
 
   private rowToRecord(row: TransactionRow): TransactionRecord {
+    const amount: number = row.amount;
+    const currency: string = row.currency;
     return {
       id: row.id,
       type: row.type as TransactionType,
       fromWalletId: row.fromWalletId || undefined,
       toWalletId: row.toWalletId || undefined,
-      amount: row.amount,
+      amount: {amount, currency},
       currency: row.currency,
       status: row.status as TransactionStatus,
       externalId: row.externalId || undefined,
@@ -129,7 +138,7 @@ export class TransactionResource {
       type: record.type,
       fromWalletId: record.fromWalletId,
       toWalletId: record.toWalletId,
-      amount: record.amount,
+      amount: record.amount.amount,
       currency: record.currency,
       status: record.status,
       externalId: record.externalId,

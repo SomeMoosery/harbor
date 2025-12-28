@@ -13,10 +13,11 @@ import type { Money } from '../../public/model/money.js';
 export class MockWalletProvider implements WalletProvider {
   constructor(private logger: Logger) {}
 
-  async createWallet(agentId: string): Promise<string> {
+  async createWallet(agentId: string): Promise<{ walletId: string; walletAddress: string }> {
     const walletId = `mock-wallet-${agentId}`;
-    this.logger.info({ agentId, walletId }, 'Mock wallet created');
-    return walletId;
+    const walletAddress = `0x${Math.random().toString(16).substring(2, 42).padEnd(40, '0')}`;
+    this.logger.info({ agentId, walletId, walletAddress }, 'Mock wallet created');
+    return { walletId, walletAddress };
   }
 
   async getBalance(_walletId: string): Promise<Money> {
@@ -43,5 +44,11 @@ export class MockWalletProvider implements WalletProvider {
       balance: { amount: 0, currency: 'USDC' }, // Placeholder - real balance comes from DB
       status: 'ACTIVE',
     };
+  }
+
+  async fundWallet(toWalletId: string, amount: Money): Promise<Money> {
+    // Mock provider simulates funding
+    this.logger.info({ toWalletId, amount }, 'Mock wallet funded');
+    return amount;
   }
 }

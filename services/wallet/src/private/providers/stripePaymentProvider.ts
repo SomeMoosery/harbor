@@ -1,6 +1,7 @@
 import type { Logger } from '@harbor/logger';
 import type { PaymentProvider } from './paymentProvider.js';
 import type { Money } from '../../public/model/money.js';
+import { toMinorUnits } from '../../public/model/money.js';
 
 /**
  * Stripe payment provider implementation
@@ -50,7 +51,7 @@ export class StripePaymentProvider implements PaymentProvider {
           'Authorization': `Bearer ${this.apiKey}`,
         },
         body: new URLSearchParams({
-          amount: Math.round(amount.amount * 100).toString(), // Stripe uses cents
+          amount: toMinorUnits(amount).toString(),
           currency: amount.currency.toLowerCase(),
           payment_method: paymentMethodId,
           confirm: 'true',
@@ -107,7 +108,7 @@ export class StripePaymentProvider implements PaymentProvider {
           'Authorization': `Bearer ${this.apiKey}`,
         },
         body: new URLSearchParams({
-          amount: Math.round(amount.amount * 100).toString(),
+          amount: toMinorUnits(amount).toString(),
           currency: amount.currency.toLowerCase(),
           destination: destinationId,
           ...Object.entries(metadata || {}).reduce((acc, [key, value]) => ({
@@ -211,7 +212,7 @@ export class StripePaymentProvider implements PaymentProvider {
           'line_items[0][price_data][currency]': params.amount.currency.toLowerCase(),
           'line_items[0][price_data][product_data][name]': 'Agent Wallet Funding',
           'line_items[0][price_data][product_data][description]': `Fund agent wallet with ${params.amount.amount} ${params.amount.currency}`,
-          'line_items[0][price_data][unit_amount]': Math.round(params.amount.amount * 100).toString(),
+          'line_items[0][price_data][unit_amount]': toMinorUnits(params.amount).toString(),
           'line_items[0][quantity]': '1',
           'metadata[type]': 'agent_funding',
           'metadata[agentId]': params.agentId,

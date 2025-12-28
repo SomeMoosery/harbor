@@ -7,6 +7,7 @@ export const wallets = pgTable('wallets', {
   id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
   agentId: text('agent_id').notNull().unique(), // One wallet per agent
   circleWalletId: text('circle_wallet_id'), // Circle wallet ID (nullable for testing)
+  walletAddress: text('wallet_address'),
   status: text('status', { enum: ['ACTIVE', 'SUSPENDED', 'CLOSED'] })
     .notNull()
     .default('ACTIVE'),
