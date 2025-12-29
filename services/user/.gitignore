@@ -1,0 +1,9 @@
+# Test coverage
+coverage/
+*.lcov
+
+# Build output
+dist/
+
+# Dependencies
+node_modules/
