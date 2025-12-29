@@ -1,7 +1,6 @@
 import type { Logger } from '@harbor/logger';
 import { ApiKeyResource } from '../resources/apiKey.resource.js';
 import { UserResource } from '../resources/user.resource.js';
-import { NotFoundError } from '@harbor/errors';
 import type { ApiKey } from '../../public/model/apiKey.js';
 
 export class ApiKeyManager {

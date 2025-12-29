@@ -1,12 +1,13 @@
-import { drizzle } from 'drizzle-orm/postgres-js';
 import type { Logger } from '@harbor/logger';
 import type { Environment } from '@harbor/config';
 import { createLocalDb } from './local-db.js';
 import { createProductionDb, closeProductionDb } from './production-db.js';
 
-let db: ReturnType<typeof drizzle> | null = null;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let db: any = null;
 
-export function getDb(env: Environment, connectionString: string, useLocalPostgres: boolean, logger: Logger): ReturnType<typeof drizzle> {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function getDb(env: Environment, connectionString: string, useLocalPostgres: boolean, logger: Logger): any {
   if (db) {
     return db;
   }
