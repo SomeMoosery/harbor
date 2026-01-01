@@ -16,7 +16,7 @@ export class SettlementManager {
   constructor(
     private readonly escrowLockResource: EscrowLockResource,
     private readonly settlementResource: SettlementResource,
-    private readonly config: Config,
+    config: Config,
     private readonly logger: Logger
   ) {
     // Use escrow strategy by default

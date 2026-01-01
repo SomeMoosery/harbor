@@ -67,7 +67,7 @@ export class ApiKeyResource {
       .from(apiKeys)
       .where(and(eq(apiKeys.userId, userId), isNull(apiKeys.deletedAt)));
 
-    return apiKeyRows.map(row => {
+    return apiKeyRows.map((row: ApiKeyRow) => {
       const record = this.rowToRecord(row);
       return this.recordToApiKey(record);
     });

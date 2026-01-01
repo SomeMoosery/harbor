@@ -54,7 +54,7 @@ export class AgentResource {
       .from(agents)
       .where(and(eq(agents.userId, userId), isNull(agents.deletedAt)));
 
-    return result.map((row) => {
+    return result.map((row: AgentRow) => {
       const record = this.rowToRecord(row);
       return this.recordToAgent(record);
     });

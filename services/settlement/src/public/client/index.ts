@@ -3,6 +3,7 @@ import type { LockEscrowRequest } from '../request/lockEscrowRequest.js';
 import type { ReleaseEscrowRequest } from '../request/releaseEscrowRequest.js';
 import type { EscrowLock } from '../model/escrowLock.js';
 import type { Settlement } from '../model/settlement.js';
+import { escrowLockSchema, settlementSchema } from '../schemas/index.js';
 
 export class SettlementClient {
   private readonly baseUrl: string;
@@ -25,7 +26,8 @@ export class SettlementClient {
       throw new Error(`Failed to lock escrow: ${error}`);
     }
 
-    return await response.json();
+    const json = await response.json();
+    return escrowLockSchema.parse(json) as EscrowLock;
   }
 
   async releaseEscrow(data: ReleaseEscrowRequest): Promise<Settlement> {
@@ -42,7 +44,8 @@ export class SettlementClient {
       throw new Error(`Failed to release escrow: ${error}`);
     }
 
-    return await response.json();
+    const json = await response.json();
+    return settlementSchema.parse(json) as Settlement;
   }
 
   async getEscrowLock(id: string): Promise<EscrowLock> {
@@ -53,7 +56,8 @@ export class SettlementClient {
       throw new Error(`Failed to get escrow lock: ${error}`);
     }
 
-    return await response.json();
+    const json = await response.json();
+    return escrowLockSchema.parse(json) as EscrowLock;
   }
 
   async getEscrowLockByBidId(bidId: string): Promise<EscrowLock | null> {
@@ -68,7 +72,8 @@ export class SettlementClient {
       throw new Error(`Failed to get escrow lock: ${error}`);
     }
 
-    return await response.json();
+    const json = await response.json();
+    return escrowLockSchema.parse(json) as EscrowLock;
   }
 
   async getSettlement(id: string): Promise<Settlement> {
@@ -79,7 +84,8 @@ export class SettlementClient {
       throw new Error(`Failed to get settlement: ${error}`);
     }
 
-    return await response.json();
+    const json = await response.json();
+    return settlementSchema.parse(json) as Settlement;
   }
 }
 
