@@ -4,27 +4,31 @@ import { AgentResource } from '../../private/resources/agent.resource.js';
 import type { UserType } from '../../public/model/userType.js';
 import type { AgentType } from '../../public/model/agentType.js';
 import { NotFoundError, ConflictError } from '@harbor/errors';
-import { createTestDb } from '../setup/testDatabase.js';
+import { createTestDb, closeTestDb, cleanTestDb } from '../setup/testDatabase.js';
 import { createMockLogger } from '../setup/mockLogger.js';
 import { createMockWalletClient } from '../setup/mockWalletClient.js';
+import type { Sql } from 'postgres';
 
 describe('UserManager', () => {
-  let db: ReturnType<typeof createTestDb>;
+  let sql: Sql;
   let userManager: UserManager;
   let userResource: UserResource;
   let agentResource: AgentResource;
   let mockLogger: ReturnType<typeof createMockLogger>;
   let mockWalletClient: ReturnType<typeof createMockWalletClient>;
 
-  beforeEach(() => {
-    // Create fresh database for each test
-    db = createTestDb();
+  beforeAll(async () => {
+    sql = await createTestDb();
+  });
+
+  beforeEach(async () => {
+    await cleanTestDb();
     mockLogger = createMockLogger();
     mockWalletClient = createMockWalletClient();
 
     // Initialize resources
-    userResource = new UserResource(db, mockLogger);
-    agentResource = new AgentResource(db, mockLogger);
+    userResource = new UserResource(sql, mockLogger);
+    agentResource = new AgentResource(sql, mockLogger);
 
     // Initialize manager with mocked wallet client
     userManager = new UserManager(
@@ -33,6 +37,10 @@ describe('UserManager', () => {
       mockLogger,
       mockWalletClient
     );
+  });
+
+  afterAll(async () => {
+    await closeTestDb();
   });
 
   describe('createUser', () => {

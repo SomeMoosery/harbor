@@ -1,15 +1,29 @@
-import { eq, and, isNull } from 'drizzle-orm';
+import type { Sql } from 'postgres';
 import type { Logger } from '@harbor/logger';
 import { NotFoundError } from '@harbor/errors';
-import { getDb, agents, type AgentRow } from '../store/index.js';
 import { Agent } from '../../public/model/agent.js';
 import { AgentRecord } from '../records/agentRecord.js';
 import { AgentType } from '../../public/model/agentType.js';
 import { Temporal } from 'temporal-polyfill';
 
+/**
+ * Database row type for agents table
+ * Uses snake_case to match database column names
+ */
+interface AgentRow {
+  id: string;
+  user_id: string;
+  name: string;
+  capabilities: Record<string, unknown>;
+  type: string;
+  created_at: Date;
+  updated_at: Date;
+  deleted_at: Date | null;
+}
+
 export class AgentResource {
   constructor(
-    private readonly db: ReturnType<typeof getDb>,
+    private readonly sql: Sql,
     private readonly logger: Logger
   ) {}
 
@@ -21,10 +35,11 @@ export class AgentResource {
   }): Promise<Agent> {
     this.logger.info({ data }, 'Creating agent');
 
-    const [agentRow] = await this.db
-      .insert(agents)
-      .values(data)
-      .returning();
+    const [agentRow] = await this.sql<AgentRow[]>`
+      INSERT INTO agents (user_id, name, capabilities, type)
+      VALUES (${data.userId}, ${data.name}, ${data.capabilities as any}, ${data.type})
+      RETURNING *
+    `;
 
     if (!agentRow) {
       throw new Error('Failed to create agent');
@@ -35,10 +50,10 @@ export class AgentResource {
   }
 
   async findById(id: string): Promise<Agent> {
-    const [agentRow] = await this.db
-      .select()
-      .from(agents)
-      .where(and(eq(agents.id, id), isNull(agents.deletedAt)));
+    const [agentRow] = await this.sql<AgentRow[]>`
+      SELECT * FROM agents
+      WHERE id = ${id} AND deleted_at IS NULL
+    `;
 
     if (!agentRow) {
       throw new NotFoundError('Agent', id);
@@ -49,12 +64,12 @@ export class AgentResource {
   }
 
   async findByUserId(userId: string): Promise<Agent[]> {
-    const result = await this.db
-      .select()
-      .from(agents)
-      .where(and(eq(agents.userId, userId), isNull(agents.deletedAt)));
+    const agentRows = await this.sql<AgentRow[]>`
+      SELECT * FROM agents
+      WHERE user_id = ${userId} AND deleted_at IS NULL
+    `;
 
-    return result.map((row: AgentRow) => {
+    return agentRows.map(row => {
       const record = this.rowToRecord(row);
       return this.recordToAgent(record);
     });
@@ -63,14 +78,13 @@ export class AgentResource {
   async updateType(id: string, type: AgentType): Promise<Agent> {
     this.logger.info({ agentId: id, type }, 'Updating agent type');
 
-    const [agentRow] = await this.db
-      .update(agents)
-      .set({
-        type,
-        updatedAt: Temporal.Now.zonedDateTimeISO()
-      })
-      .where(and(eq(agents.id, id), isNull(agents.deletedAt)))
-      .returning();
+    const now = new Date();
+    const [agentRow] = await this.sql<AgentRow[]>`
+      UPDATE agents
+      SET type = ${type}, updated_at = ${now}
+      WHERE id = ${id} AND deleted_at IS NULL
+      RETURNING *
+    `;
 
     if (!agentRow) {
       throw new NotFoundError('Agent', id);
@@ -83,25 +97,30 @@ export class AgentResource {
   async softDeleteByUserId(userId: string): Promise<void> {
     this.logger.info({ userId }, 'Soft deleting all agents for user');
 
-    await this.db
-      .update(agents)
-      .set({
-        deletedAt: Temporal.Now.zonedDateTimeISO(),
-        updatedAt: Temporal.Now.zonedDateTimeISO(),
-      })
-      .where(and(eq(agents.userId, userId), isNull(agents.deletedAt)));
+    const now = new Date();
+    await this.sql`
+      UPDATE agents
+      SET deleted_at = ${now}, updated_at = ${now}
+      WHERE user_id = ${userId} AND deleted_at IS NULL
+    `;
   }
 
+  /**
+   * Convert database row to AgentRecord
+   * postgres.js returns Date objects for TIMESTAMPTZ, convert to Temporal
+   */
   private rowToRecord(row: AgentRow): AgentRecord {
     return {
       id: row.id,
-      userId: row.userId,
+      userId: row.user_id,
       name: row.name,
       capabilities: row.capabilities,
       type: row.type as AgentType,
-      createdAt: row.createdAt,
-      updatedAt: row.updatedAt,
-      deletedAt: row.deletedAt,
+      createdAt: Temporal.Instant.fromEpochMilliseconds(row.created_at.getTime()).toZonedDateTimeISO('UTC'),
+      updatedAt: Temporal.Instant.fromEpochMilliseconds(row.updated_at.getTime()).toZonedDateTimeISO('UTC'),
+      deletedAt: row.deleted_at
+        ? Temporal.Instant.fromEpochMilliseconds(row.deleted_at.getTime()).toZonedDateTimeISO('UTC')
+        : null,
     };
   }
 

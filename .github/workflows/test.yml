@@ -4,11 +4,29 @@ on:
   pull_request:
     branches:
       - master
+  push:
+    branches:
+      - master
 
 jobs:
   test:
     name: Run Unit Tests
     runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: harbor
+          POSTGRES_PASSWORD: harbor_dev_password
+          POSTGRES_DB: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
 
     steps:
       - name: Checkout code
@@ -28,5 +46,35 @@ jobs:
       - name: Install dependencies
         run: pnpm install
 
+      - name: Enable uuid-ossp extension in PostgreSQL
+        env:
+          PGPASSWORD: harbor_dev_password
+        run: |
+          psql -h localhost -U harbor -d postgres -c "CREATE EXTENSION IF NOT EXISTS \"uuid-ossp\";"
+
       - name: Run tests
+        env:
+          POSTGRES_URL: postgresql://harbor:harbor_dev_password@localhost:5432/postgres
+          NODE_ENV: test
         run: pnpm test
+
+      - name: Cleanup test databases
+        if: always()
+        env:
+          PGPASSWORD: harbor_dev_password
+        run: |
+          # Terminate connections to test databases
+          psql -h localhost -U harbor -d postgres -c "
+            SELECT pg_terminate_backend(pg_stat_activity.pid)
+            FROM pg_stat_activity
+            WHERE datname LIKE 'harbor_%_test_%'
+              AND pid <> pg_backend_pid();
+          " || true
+
+          # Drop all test databases
+          for db in $(psql -h localhost -U harbor -d postgres -t -c "
+            SELECT datname FROM pg_database WHERE datname LIKE 'harbor_%_test_%'
+          "); do
+            echo "Dropping database: $db"
+            psql -h localhost -U harbor -d postgres -c "DROP DATABASE IF EXISTS \"$db\"" || true
+          done

@@ -1,106 +1,107 @@
-import { drizzle } from 'drizzle-orm/node-postgres';
-import { DataType, newDb } from 'pg-mem';
-import { applyIntegrationsToPool } from 'drizzle-pgmem';
-import { Temporal } from 'temporal-polyfill';
-import { randomUUID } from 'node:crypto';
-import { readdirSync, readFileSync } from 'node:fs';
+import postgres from 'postgres';
+import type { Sql } from 'postgres';
+import { runner } from 'node-pg-migrate';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import * as schema from '../../private/store/schema.js';
+import { randomBytes } from 'node:crypto';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 /**
- * Create a fresh in-memory database for testing
- * Automatically discovers and runs all migration files to ensure schema stays in sync
+ * Postgres admin connection (connects to 'postgres' database to create/drop test databases)
  */
-export function createTestDb() {
-  const mem = newDb({
-    autoCreateForeignKeyIndices: true,
+const ADMIN_DB_URL = process.env.POSTGRES_URL || 'postgresql://harbor:harbor_dev_password@localhost:5432/postgres';
+
+/**
+ * Generate unique database name for this test run
+ * Format: harbor_tendering_test_[timestamp]_[random]
+ */
+const TEST_DB_NAME = `harbor_tendering_test_${Date.now()}_${randomBytes(4).toString('hex')}`;
+const TEST_DB_URL = ADMIN_DB_URL.replace(/\/[^/]+$/, `/${TEST_DB_NAME}`);
+
+let sql: Sql | null = null;
+let adminSql: Sql | null = null;
+
+/**
+ * Clean all data from test database between tests
+ * Keeps schema intact, just deletes data
+ */
+export async function cleanTestDb(): Promise<void> {
+  if (sql) {
+    await sql`TRUNCATE TABLE bids, asks CASCADE`;
+  }
+}
+
+/**
+ * Create ephemeral test database
+ * - Creates new database with unique name
+ * - Enables uuid-ossp extension
+ * - Runs migrations
+ * - Returns connection to test database
+ */
+export async function createTestDb(): Promise<Sql> {
+  if (sql) {
+    return sql;
+  }
+
+  // Connect to admin database to create test database
+  adminSql = postgres(ADMIN_DB_URL, {
+    max: 1,
   });
 
-  // Register PostgreSQL functions
-  mem.public.registerFunction({
-    name: 'current_database',
-    returns: DataType.text,
-    implementation: () => 'test_db',
+  // Create test database
+  await adminSql.unsafe(`CREATE DATABASE ${TEST_DB_NAME}`);
+
+  // Enable uuid-ossp extension
+  const tempSql = postgres(TEST_DB_URL, { max: 1 });
+  await tempSql`CREATE EXTENSION IF NOT EXISTS "uuid-ossp"`;
+  await tempSql.end();
+
+  // Connect to test database
+  sql = postgres(TEST_DB_URL, {
+    max: 1,
+    idle_timeout: 20,
+    connect_timeout: 10,
   });
 
-  mem.public.registerFunction({
-    name: 'version',
-    returns: DataType.text,
-    implementation: () => 'PostgreSQL 14.0 (pg-mem test)',
+  // Run migrations
+  const migrationsDir = join(__dirname, '../../../migrations');
+  await runner({
+    databaseUrl: TEST_DB_URL,
+    dir: migrationsDir,
+    direction: 'up',
+    migrationsTable: 'pgmigrations',
+    count: Infinity,
+    verbose: false,
   });
 
-  mem.public.registerFunction({
-    name: 'gen_random_uuid',
-    returns: DataType.uuid,
-    implementation: () => randomUUID(),
-    impure: true,
-  });
+  return sql;
+}
 
-  mem.public.registerFunction({
-    name: 'now',
-    returns: DataType.timestamptz,
-    implementation: () => {
-      const now = Temporal.Now.zonedDateTimeISO();
-      return new Date(now.epochMilliseconds);
-    },
-  });
+/**
+ * Close test database connection and drop the database
+ * Call this in afterAll() hooks to clean up ephemeral database
+ */
+export async function closeTestDb(): Promise<void> {
+  if (sql) {
+    await sql.end();
+    sql = null;
+  }
 
-  const { Pool: PgMemPool } = mem.adapters.createPg();
-  const pool = new PgMemPool();
-  applyIntegrationsToPool(pool);
+  if (adminSql) {
+    // Terminate all connections to the test database before dropping
+    await adminSql.unsafe(`
+      SELECT pg_terminate_backend(pg_stat_activity.pid)
+      FROM pg_stat_activity
+      WHERE pg_stat_activity.datname = '${TEST_DB_NAME}'
+        AND pid <> pg_backend_pid()
+    `);
 
-  const db = drizzle(pool, { schema });
+    // Drop the test database
+    await adminSql.unsafe(`DROP DATABASE IF EXISTS ${TEST_DB_NAME}`);
 
-  // Discover and run all migration files
-  const migrationsDir = join(__dirname, '../../../drizzle');
-  const migrationFiles = readdirSync(migrationsDir)
-    .filter(f => f.endsWith('.sql'))
-    .sort(); // Ensures migrations run in order (0000_, 0001_, etc.)
-
-  migrationFiles.forEach(file => {
-    const migrationPath = join(migrationsDir, file);
-    const migrationSQL = readFileSync(migrationPath, 'utf-8');
-
-    // Parse and execute migration
-    // pg-mem doesn't support DO blocks, so we extract CREATE and ALTER statements
-    const statements = migrationSQL
-      .split('--> statement-breakpoint')
-      .map(s => s.trim())
-      .filter(s => s && !s.startsWith('DO $$'));
-
-    statements.forEach(statement => {
-      if (statement) {
-        try {
-          mem.public.none(statement);
-        } catch (error) {
-          // Skip if already exists (for reruns)
-          if (!String(error).includes('already exists') && !String(error).includes('duplicate')) {
-            throw error;
-          }
-        }
-      }
-    });
-
-    // Handle foreign key constraints from DO blocks
-    // Extract foreign key constraints and run them directly
-    const doBlockMatch = migrationSQL.match(/ALTER TABLE[^;]+FOREIGN KEY[^;]+;/g);
-    if (doBlockMatch) {
-      doBlockMatch.forEach(fkStatement => {
-        try {
-          mem.public.none(fkStatement.trim());
-        } catch (error) {
-          // Skip if already exists
-          if (!String(error).includes('already exists') && !String(error).includes('duplicate')) {
-            throw error;
-          }
-        }
-      });
-    }
-  });
-
-  return db;
+    await adminSql.end();
+    adminSql = null;
+  }
 }

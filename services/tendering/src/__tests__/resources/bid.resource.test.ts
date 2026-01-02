@@ -2,21 +2,26 @@ import { BidResource } from '../../private/resources/bid.resource.js';
 import { AskResource } from '../../private/resources/ask.resource.js';
 import type { BidStatus } from '../../public/model/bidStatus.js';
 import { NotFoundError } from '@harbor/errors';
-import { createTestDb } from '../setup/testDatabase.js';
+import { createTestDb, closeTestDb, cleanTestDb } from '../setup/testDatabase.js';
 import { createMockLogger } from '../setup/mockLogger.js';
+import type { Sql } from 'postgres';
 
 describe('BidResource', () => {
-  let db: ReturnType<typeof createTestDb>;
+  let sql: Sql;
   let bidResource: BidResource;
   let askResource: AskResource;
   let mockLogger: ReturnType<typeof createMockLogger>;
   let testAskId: string;
 
+  beforeAll(async () => {
+    sql = await createTestDb();
+  });
+
   beforeEach(async () => {
-    db = createTestDb();
+    await cleanTestDb();
     mockLogger = createMockLogger();
-    bidResource = new BidResource(db, mockLogger);
-    askResource = new AskResource(db, mockLogger);
+    bidResource = new BidResource(sql, mockLogger);
+    askResource = new AskResource(sql, mockLogger);
 
     // Create a test ask to bid on
     const ask = await askResource.create({
@@ -292,5 +297,9 @@ describe('BidResource', () => {
       const unaffectedBid = await bidResource.findById(bid2.id);
       expect(unaffectedBid.status).toBe('PENDING');
     });
+  });
+
+  afterAll(async () => {
+    await closeTestDb();
   });
 });

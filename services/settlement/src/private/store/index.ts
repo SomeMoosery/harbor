@@ -1,31 +1,37 @@
 import type { Logger } from '@harbor/logger';
-import type { Environment } from '@harbor/config';
-import { createLocalDb } from './local-db.js';
-import { createProductionDb, closeProductionDb } from './production-db.js';
+import postgres from 'postgres';
+import type { Sql } from 'postgres';
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let db: any = null;
+let sql: Sql | null = null;
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function getDb(env: Environment, connectionString: string, useLocalPostgres: boolean, logger: Logger): any {
-  if (db) {
-    return db;
+/**
+ * Get database connection instance
+ * Creates a single postgres.js connection for the settlement service
+ */
+export function getDb(connectionString: string, logger: Logger): Sql {
+  if (sql) {
+    return sql;
   }
 
-  if (env === 'local' && !useLocalPostgres) {
-    db = createLocalDb(logger);
-  } else {
-    db = createProductionDb(connectionString, logger);
-  }
+  logger.info('Initializing database connection');
 
-  return db;
+  sql = postgres(connectionString, {
+    max: 10, // Connection pool size
+    idle_timeout: 20,
+    connect_timeout: 10,
+    onnotice: () => {}, // Silence NOTICE messages
+  });
+
+  return sql;
 }
 
-export async function closeDb(env: Environment, useLocalPostgres: boolean, logger: Logger) {
-  if (env !== 'local' || useLocalPostgres) {
-    await closeProductionDb(logger);
+/**
+ * Close database connection (for graceful shutdown)
+ */
+export async function closeDb(logger: Logger): Promise<void> {
+  if (sql) {
+    logger.info('Closing database connection');
+    await sql.end();
+    sql = null;
   }
-  db = null;
 }
-
-export * from './schema.js';

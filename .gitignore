@@ -28,8 +28,6 @@ lerna-debug.log*
 *.db
 *.sqlite
 *.sqlite3
-drizzle/
-migrations/
 
 # IDE
 .vscode/

@@ -1,41 +1,35 @@
 import type { Logger } from '@harbor/logger';
-import type { Environment } from '@harbor/config';
-import { createLocalDb } from './local-db.js';
-import { createProductionDb, closeProductionDb } from './production-db.js';
+import { createDatabaseConnection, type DatabaseConnection } from '@harbor/db';
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let db: any = null;
+let connection: DatabaseConnection | null = null;
 
 /**
- * Get database instance based on environment
+ * Get database connection
  *
- * - local with useLocalPostgres=false: In-memory PostgreSQL (pg-mem)
- * - local with useLocalPostgres=true: Local PostgreSQL (Docker)
- * - staging/production: Real PostgreSQL (Cloud SQL, RDS, etc.)
+ * Uses real PostgreSQL for all environments (local, staging, production)
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function getDb(env: Environment, connectionString: string, useLocalPostgres: boolean, logger: Logger): any {
-  if (db) {
-    return db;
+export function getDb(connectionString: string, logger: Logger): DatabaseConnection {
+  if (connection) {
+    return connection;
   }
 
-  if (env === 'local' && !useLocalPostgres) {
-    db = createLocalDb(logger);
-  } else {
-    db = createProductionDb(connectionString, logger);
-  }
+  connection = createDatabaseConnection(connectionString, logger, {
+    max: 10,
+    idle_timeout: 20,
+    connect_timeout: 10,
+  });
 
-  return db;
+  return connection;
 }
 
 /**
  * Close database connection (for graceful shutdown)
  */
-export async function closeDb(env: Environment, useLocalPostgres: boolean, logger: Logger) {
-  if (env !== 'local' || useLocalPostgres) {
-    await closeProductionDb(logger);
+export async function closeDb(logger: Logger): Promise<void> {
+  if (connection) {
+    await connection.close();
+    connection = null;
+  } else {
+    logger.warn('Attempted to close database connection, but no connection exists');
   }
-  db = null;
 }
-
-export * from './schema.js';

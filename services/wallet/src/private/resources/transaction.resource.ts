@@ -1,15 +1,28 @@
-import { eq, desc, or } from 'drizzle-orm';
 import type { Logger } from '@harbor/logger';
+import type { Sql } from 'postgres';
 import { NotFoundError } from '@harbor/errors';
-import { getDb, transactions, type TransactionRow } from '../store/index.js';
 import { Transaction, TransactionType, TransactionStatus } from '../../public/model/transaction.js';
 import { TransactionRecord } from '../records/transactionRecord.js';
 import { Temporal } from 'temporal-polyfill';
 import { Money } from '../../public/model/money.js';
 
+interface TransactionRow {
+  id: string;
+  type: string;
+  from_wallet_id: string | null;
+  to_wallet_id: string | null;
+  amount: number;
+  currency: string;
+  status: string;
+  external_id: string | null;
+  metadata: Record<string, unknown> | null;
+  created_at: Date;
+  updated_at: Date;
+}
+
 export class TransactionResource {
   constructor(
-    private readonly db: ReturnType<typeof getDb>,
+    private readonly sql: Sql,
     private readonly logger: Logger
   ) {}
 
@@ -25,19 +38,22 @@ export class TransactionResource {
   }): Promise<Transaction> {
     this.logger.info({ data }, 'Creating transaction');
 
-    const [transactionRow] = await this.db
-      .insert(transactions)
-      .values({
-        type: data.type,
-        fromWalletId: data.fromWalletId,
-        toWalletId: data.toWalletId,
-        amount: data.amount.amount,
-        currency: data.currency,
-        status: data.status || 'PENDING',
-        externalId: data.externalId,
-        metadata: data.metadata,
-      })
-      .returning();
+    const [transactionRow] = await this.sql<TransactionRow[]>`
+      INSERT INTO transactions (
+        type, from_wallet_id, to_wallet_id, amount, currency, status, external_id, metadata
+      )
+      VALUES (
+        ${data.type},
+        ${data.fromWalletId || null},
+        ${data.toWalletId || null},
+        ${data.amount.amount},
+        ${data.currency},
+        ${data.status || 'PENDING'},
+        ${data.externalId || null},
+        ${(data.metadata ?? null) as any}
+      )
+      RETURNING *
+    `;
 
     if (!transactionRow) {
       throw new Error('Failed to create transaction');
@@ -48,10 +64,10 @@ export class TransactionResource {
   }
 
   async findById(id: string): Promise<Transaction> {
-    const [transactionRow] = await this.db
-      .select()
-      .from(transactions)
-      .where(eq(transactions.id, id));
+    const [transactionRow] = await this.sql<TransactionRow[]>`
+      SELECT * FROM transactions
+      WHERE id = ${id}
+    `;
 
     if (!transactionRow) {
       throw new NotFoundError('Transaction', id);
@@ -62,29 +78,25 @@ export class TransactionResource {
   }
 
   async findByWalletId(walletId: string, limit = 50): Promise<Transaction[]> {
-    const transactionRows = await this.db
-      .select()
-      .from(transactions)
-      .where(
-        or(
-          eq(transactions.fromWalletId, walletId),
-          eq(transactions.toWalletId, walletId)
-        )
-      )
-      .orderBy(desc(transactions.createdAt))
-      .limit(limit);
+    const transactionRows = await this.sql<TransactionRow[]>`
+      SELECT * FROM transactions
+      WHERE from_wallet_id = ${walletId}
+         OR to_wallet_id = ${walletId}
+      ORDER BY created_at DESC
+      LIMIT ${limit}
+    `;
 
-    return transactionRows.map((row: any) => {
+    return transactionRows.map((row) => {
       const record = this.rowToRecord(row);
       return this.recordToTransaction(record);
     });
   }
 
   async findByExternalId(externalId: string): Promise<Transaction | null> {
-    const [transactionRow] = await this.db
-      .select()
-      .from(transactions)
-      .where(eq(transactions.externalId, externalId));
+    const [transactionRow] = await this.sql<TransactionRow[]>`
+      SELECT * FROM transactions
+      WHERE external_id = ${externalId}
+    `;
 
     if (!transactionRow) {
       return null;
@@ -97,14 +109,13 @@ export class TransactionResource {
   async updateStatus(id: string, status: TransactionStatus): Promise<Transaction> {
     this.logger.info({ transactionId: id, status }, 'Updating transaction status');
 
-    const [transactionRow] = await this.db
-      .update(transactions)
-      .set({
-        status,
-        updatedAt: Temporal.Now.zonedDateTimeISO(),
-      })
-      .where(eq(transactions.id, id))
-      .returning();
+    const [transactionRow] = await this.sql<TransactionRow[]>`
+      UPDATE transactions
+      SET status = ${status},
+          updated_at = NOW()
+      WHERE id = ${id}
+      RETURNING *
+    `;
 
     if (!transactionRow) {
       throw new NotFoundError('Transaction', id);
@@ -120,15 +131,15 @@ export class TransactionResource {
     return {
       id: row.id,
       type: row.type as TransactionType,
-      fromWalletId: row.fromWalletId || undefined,
-      toWalletId: row.toWalletId || undefined,
-      amount: {amount, currency},
+      fromWalletId: row.from_wallet_id || undefined,
+      toWalletId: row.to_wallet_id || undefined,
+      amount: { amount, currency },
       currency: row.currency,
       status: row.status as TransactionStatus,
-      externalId: row.externalId || undefined,
-      metadata: row.metadata ? (row.metadata as Record<string, unknown>) : undefined,
-      createdAt: row.createdAt,
-      updatedAt: row.updatedAt,
+      externalId: row.external_id || undefined,
+      metadata: row.metadata || undefined,
+      createdAt: Temporal.Instant.fromEpochMilliseconds(row.created_at.getTime()).toZonedDateTimeISO('UTC'),
+      updatedAt: Temporal.Instant.fromEpochMilliseconds(row.updated_at.getTime()).toZonedDateTimeISO('UTC'),
     };
   }
 

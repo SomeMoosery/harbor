@@ -3,21 +3,26 @@ import { UserResource } from '../../private/resources/user.resource.js';
 import type { AgentType } from '../../public/model/agentType.js';
 import type { UserType } from '../../public/model/userType.js';
 import { NotFoundError } from '@harbor/errors';
-import { createTestDb } from '../setup/testDatabase.js';
+import { createTestDb, closeTestDb, cleanTestDb } from '../setup/testDatabase.js';
 import { createMockLogger } from '../setup/mockLogger.js';
+import type { Sql } from 'postgres';
 
 describe('AgentResource', () => {
-  let db: ReturnType<typeof createTestDb>;
+  let sql: Sql;
   let agentResource: AgentResource;
   let userResource: UserResource;
   let mockLogger: ReturnType<typeof createMockLogger>;
   let testUserId: string;
 
+  beforeAll(async () => {
+    sql = await createTestDb();
+  });
+
   beforeEach(async () => {
-    db = createTestDb();
+    await cleanTestDb();
     mockLogger = createMockLogger();
-    agentResource = new AgentResource(db, mockLogger);
-    userResource = new UserResource(db, mockLogger);
+    agentResource = new AgentResource(sql, mockLogger);
+    userResource = new UserResource(sql, mockLogger);
 
     // Create a test user for agent relationships
     const user = await userResource.create({
@@ -27,6 +32,10 @@ describe('AgentResource', () => {
       phone: '+1234567890',
     });
     testUserId = user.id;
+  });
+
+  afterAll(async () => {
+    await closeTestDb();
   });
 
   describe('create', () => {
