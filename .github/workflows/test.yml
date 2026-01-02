@@ -18,7 +18,7 @@ jobs:
         image: postgres:16-alpine
         env:
           POSTGRES_USER: harbor
-          POSTGRES_PASSWORD: harbor_test_password
+          POSTGRES_PASSWORD: harbor_dev_password
           POSTGRES_DB: postgres
         options: >-
           --health-cmd pg_isready
@@ -48,20 +48,20 @@ jobs:
 
       - name: Enable uuid-ossp extension in PostgreSQL
         env:
-          PGPASSWORD: harbor_test_password
+          PGPASSWORD: harbor_dev_password
         run: |
           psql -h localhost -U harbor -d postgres -c "CREATE EXTENSION IF NOT EXISTS \"uuid-ossp\";"
 
       - name: Run tests
         env:
-          POSTGRES_URL: postgresql://harbor:harbor_test_password@localhost:5432/postgres
+          POSTGRES_URL: postgresql://harbor:harbor_dev_password@localhost:5432/postgres
           NODE_ENV: test
         run: pnpm test
 
       - name: Cleanup test databases
         if: always()
         env:
-          PGPASSWORD: harbor_test_password
+          PGPASSWORD: harbor_dev_password
         run: |
           # Terminate connections to test databases
           psql -h localhost -U harbor -d postgres -c "
