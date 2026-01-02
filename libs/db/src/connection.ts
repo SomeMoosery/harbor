@@ -1,29 +1,27 @@
-import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
 import type { Logger } from '@harbor/logger';
 import type { ConnectionPoolConfig, DatabaseConnection } from './types.js';
 
 /**
- * Create a PostgreSQL database connection with Drizzle ORM
+ * Create a PostgreSQL database connection using postgres.js
  *
- * Benefits over module-level singletons:
- * - Easier to test (no shared state)
- * - Configurable connection pool settings
- * - Explicit cleanup via close()
- * - Type-safe schema
+ * Benefits:
+ * - Simple, direct SQL queries
+ * - Excellent TypeScript support
+ * - Fast and lightweight
+ * - Tagged template literals for safety
+ * - Automatic prepared statements
  *
  * @param connectionString - PostgreSQL connection string
- * @param schema - Drizzle schema object
  * @param logger - Logger instance
  * @param config - Optional connection pool configuration
- * @returns Database connection object with db instance and close function
+ * @returns Database connection object with sql instance and close function
  */
-export function createDatabaseConnection<TSchema extends Record<string, unknown>>(
+export function createDatabaseConnection(
   connectionString: string,
-  schema: TSchema,
   logger: Logger,
   config: ConnectionPoolConfig = {}
-): DatabaseConnection<TSchema> {
+): DatabaseConnection {
   const {
     max = 10,
     idle_timeout = 20,
@@ -40,20 +38,18 @@ export function createDatabaseConnection<TSchema extends Record<string, unknown>
     poolSize: max,
   }, 'Creating database connection');
 
-  const client = postgres(connectionString, {
+  const sql = postgres(connectionString, {
     max,
     idle_timeout,
     connect_timeout,
   });
 
-  const db = drizzle(client, { schema });
-
   const close = async () => {
     logger.info('Closing database connection');
-    await client.end();
+    await sql.end();
   };
 
   logger.info('Database connection established');
 
-  return { db, close };
+  return { sql, close };
 }

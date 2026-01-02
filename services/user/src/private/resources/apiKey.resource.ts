@@ -1,15 +1,28 @@
-import { eq, and, isNull } from 'drizzle-orm';
+import type { Sql } from 'postgres';
 import type { Logger } from '@harbor/logger';
 import { NotFoundError } from '@harbor/errors';
-import { getDb, apiKeys, type ApiKeyRow } from '../store/index.js';
 import { ApiKey } from '../../public/model/apiKey.js';
 import { ApiKeyRecord } from '../records/apiKeyRecord.js';
 import { Temporal } from 'temporal-polyfill';
 import { randomBytes } from 'node:crypto';
 
+/**
+ * Database row type for api_keys table
+ * Uses snake_case to match database column names
+ */
+interface ApiKeyRow {
+  id: string;
+  user_id: string;
+  key: string;
+  name: string | null;
+  last_used_at: Date | null;
+  created_at: Date;
+  deleted_at: Date | null;
+}
+
 export class ApiKeyResource {
   constructor(
-    private readonly db: ReturnType<typeof getDb>,
+    private readonly sql: Sql,
     private readonly logger: Logger
   ) {}
 
@@ -17,7 +30,7 @@ export class ApiKeyResource {
    * Generate a secure API key
    */
   private generateApiKey(): string {
-    // Format: hbr_live_<32 random hex chars> or hbr_test_<32 random hex chars>
+    // Format: hbr_live_<32 random hex chars>
     const randomPart = randomBytes(16).toString('hex');
     return `hbr_live_${randomPart}`;
   }
@@ -30,14 +43,11 @@ export class ApiKeyResource {
 
     const key = this.generateApiKey();
 
-    const [apiKeyRow] = await this.db
-      .insert(apiKeys)
-      .values({
-        userId: data.userId,
-        key,
-        name: data.name,
-      })
-      .returning();
+    const [apiKeyRow] = await this.sql<ApiKeyRow[]>`
+      INSERT INTO api_keys (user_id, key, name)
+      VALUES (${data.userId}, ${key}, ${data.name ?? null})
+      RETURNING *
+    `;
 
     if (!apiKeyRow) {
       throw new Error('Failed to create API key');
@@ -48,10 +58,10 @@ export class ApiKeyResource {
   }
 
   async findByKey(key: string): Promise<ApiKey | null> {
-    const [apiKeyRow] = await this.db
-      .select()
-      .from(apiKeys)
-      .where(and(eq(apiKeys.key, key), isNull(apiKeys.deletedAt)));
+    const [apiKeyRow] = await this.sql<ApiKeyRow[]>`
+      SELECT * FROM api_keys
+      WHERE key = ${key} AND deleted_at IS NULL
+    `;
 
     if (!apiKeyRow) {
       return null;
@@ -62,47 +72,59 @@ export class ApiKeyResource {
   }
 
   async findByUserId(userId: string): Promise<ApiKey[]> {
-    const apiKeyRows = await this.db
-      .select()
-      .from(apiKeys)
-      .where(and(eq(apiKeys.userId, userId), isNull(apiKeys.deletedAt)));
+    const apiKeyRows = await this.sql<ApiKeyRow[]>`
+      SELECT * FROM api_keys
+      WHERE user_id = ${userId} AND deleted_at IS NULL
+    `;
 
-    return apiKeyRows.map((row: ApiKeyRow) => {
+    return apiKeyRows.map(row => {
       const record = this.rowToRecord(row);
       return this.recordToApiKey(record);
     });
   }
 
   async updateLastUsed(key: string): Promise<void> {
-    await this.db
-      .update(apiKeys)
-      .set({ lastUsedAt: Temporal.Now.zonedDateTimeISO() })
-      .where(eq(apiKeys.key, key));
+    const now = new Date();
+    await this.sql`
+      UPDATE api_keys
+      SET last_used_at = ${now}
+      WHERE key = ${key}
+    `;
   }
 
   async delete(id: string, userId: string): Promise<void> {
     this.logger.info({ id, userId }, 'Soft deleting API key');
 
-    const result = await this.db
-      .update(apiKeys)
-      .set({ deletedAt: Temporal.Now.zonedDateTimeISO() })
-      .where(and(eq(apiKeys.id, id), eq(apiKeys.userId, userId)))
-      .returning();
+    const now = new Date();
+    const [result] = await this.sql<ApiKeyRow[]>`
+      UPDATE api_keys
+      SET deleted_at = ${now}
+      WHERE id = ${id} AND user_id = ${userId}
+      RETURNING *
+    `;
 
-    if (!result.length) {
+    if (!result) {
       throw new NotFoundError('API Key', id);
     }
   }
 
+  /**
+   * Convert database row to ApiKeyRecord
+   * postgres.js returns Date objects for TIMESTAMPTZ, convert to Temporal
+   */
   private rowToRecord(row: ApiKeyRow): ApiKeyRecord {
     return {
       id: row.id,
-      userId: row.userId,
+      userId: row.user_id,
       key: row.key,
       name: row.name || undefined,
-      lastUsedAt: row.lastUsedAt || undefined,
-      createdAt: row.createdAt,
-      deletedAt: row.deletedAt || undefined,
+      lastUsedAt: row.last_used_at
+        ? Temporal.Instant.fromEpochMilliseconds(row.last_used_at.getTime()).toZonedDateTimeISO('UTC')
+        : undefined,
+      createdAt: Temporal.Instant.fromEpochMilliseconds(row.created_at.getTime()).toZonedDateTimeISO('UTC'),
+      deletedAt: row.deleted_at
+        ? Temporal.Instant.fromEpochMilliseconds(row.deleted_at.getTime()).toZonedDateTimeISO('UTC')
+        : undefined,
     };
   }
 

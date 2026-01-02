@@ -2,7 +2,6 @@ import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { zValidator } from '@hono/zod-validator';
 import type { Logger } from '@harbor/logger';
-import type { Environment } from '@harbor/config';
 import { getDb } from '../store/index.js';
 import { UserResource } from '../resources/user.resource.js';
 import { AgentResource } from '../resources/agent.resource.js';
@@ -14,7 +13,7 @@ import { ApiKeyController } from '../controllers/apiKey.controller.js';
 import { createUserSchema, createAgentSchema } from '../validators/user.validator.js';
 import { handleError } from '../utils/errorHandler.js';
 
-export function createRoutes(env: Environment, connectionString: string, useLocalPostgres: boolean, logger: Logger) {
+export function createRoutes(connectionString: string, logger: Logger) {
   const app = new Hono();
 
   // Enable CORS for local development
@@ -24,12 +23,12 @@ export function createRoutes(env: Environment, connectionString: string, useLoca
     allowHeaders: ['Content-Type', 'Authorization'],
   }));
 
-  const db = getDb(env, connectionString, useLocalPostgres, logger);
+  const { sql } = getDb(connectionString, logger);
 
   // Initialize layers
-  const userResource = new UserResource(db, logger);
-  const agentResource = new AgentResource(db, logger);
-  const apiKeyResource = new ApiKeyResource(db, logger);
+  const userResource = new UserResource(sql, logger);
+  const agentResource = new AgentResource(sql, logger);
+  const apiKeyResource = new ApiKeyResource(sql, logger);
 
   const userManager = new UserManager(userResource, agentResource, logger);
   const apiKeyManager = new ApiKeyManager(apiKeyResource, userResource, logger);

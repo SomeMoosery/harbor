@@ -1,4 +1,5 @@
 -- Create separate databases for each service
+-- Test databases are created ephemerally per test run
 CREATE DATABASE harbor_user;
 CREATE DATABASE harbor_wallet;
 CREATE DATABASE harbor_tendering;

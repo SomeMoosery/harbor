@@ -11,11 +11,10 @@
     "dev": "tsx watch src/main.ts",
     "build": "tsc --build",
     "start": "node dist/main.js",
+    "migrate": "tsx src/scripts/migrate.ts",
     "test": "NODE_OPTIONS='--experimental-vm-modules --no-warnings=ExperimentalWarning' jest",
     "test:watch": "NODE_OPTIONS='--experimental-vm-modules --no-warnings=ExperimentalWarning' jest --watch",
     "test:coverage": "NODE_OPTIONS='--experimental-vm-modules --no-warnings=ExperimentalWarning' jest --coverage",
-    "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate",
     "clean": "rm -rf dist"
   },
   "dependencies": {
@@ -26,10 +25,8 @@
     "@harbor/wallet": "workspace:*",
     "@hono/node-server": "^1.13.7",
     "@hono/zod-validator": "^0.4.1",
-    "drizzle-orm": "^0.36.4",
     "hono": "^4.6.14",
-    "pg": "^8.13.1",
-    "pg-mem": "^3.0.2",
+    "node-pg-migrate": "^8.0.4",
     "postgres": "^3.4.5",
     "temporal-polyfill": "^0.2.5",
     "zod": "^3.24.1"
@@ -37,9 +34,6 @@
   "devDependencies": {
     "@types/jest": "^30.0.0",
     "@types/node": "^22.10.2",
-    "@types/pg": "^8.11.10",
-    "drizzle-kit": "^0.29.1",
-    "drizzle-pgmem": "^0.6.2",
     "jest": "^30.2.0",
     "ts-jest": "^29.4.6",
     "tsx": "^4.19.2",
