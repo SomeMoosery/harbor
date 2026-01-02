@@ -2,7 +2,7 @@ import { serve } from '@hono/node-server';
 import { createConfig, SERVICE_PORTS } from '@harbor/config';
 import { createLogger } from '@harbor/logger';
 import { createRoutes } from './private/routes/index.js';
-import { runMigrations } from './private/store/migrate.js';
+import { runSettlementMigrations } from './private/store/migrate.js';
 import { closeDb } from './private/store/index.js';
 import { ensurePlatformWallets } from './private/utils/ensurePlatformWallets.js';
 
@@ -19,7 +19,11 @@ async function startServer() {
 
   if (config.database.autoMigrate) {
     try {
-      await runMigrations(config.env, config.database.url, config.database.useLocalPostgres, logger);
+      if (!config.database.url) {
+        logger.fatal('DATABASE_URL or DATABASE_URL_SETTLEMENT must be set');
+        process.exit(1);
+      }
+      await runSettlementMigrations(config.database.url, logger);
     } catch (error) {
       logger.fatal({ error }, 'Failed to run migrations, shutting down');
       process.exit(1);
@@ -36,7 +40,12 @@ async function startServer() {
     process.exit(1);
   }
 
-  const app = createRoutes(config.env, config.database.url, config.database.useLocalPostgres, logger, config);
+  if (!config.database.url) {
+    logger.fatal('DATABASE_URL or DATABASE_URL_SETTLEMENT must be set');
+    process.exit(1);
+  }
+
+  const app = createRoutes(config.database.url, logger, config);
 
   const server = serve(
     {
@@ -61,7 +70,7 @@ async function startServer() {
       logger.info('HTTP server closed');
 
       try {
-        await closeDb(config.env, config.database.useLocalPostgres, logger);
+        await closeDb(logger);
         logger.info('Database connection closed');
         process.exit(0);
       } catch (error) {

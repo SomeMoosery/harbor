@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { zValidator } from '@hono/zod-validator';
 import type { Logger } from '@harbor/logger';
-import type { Environment, Config } from '@harbor/config';
+import type { Config } from '@harbor/config';
 import { getDb } from '../store/index.js';
 import { EscrowLockResource } from '../resources/escrowLock.resource.js';
 import { SettlementResource } from '../resources/settlement.resource.js';
@@ -9,9 +9,9 @@ import { SettlementManager } from '../managers/settlement.manager.js';
 import { SettlementController } from '../controllers/settlement.controller.js';
 import { lockEscrowSchema, releaseEscrowSchema } from '../validators/settlement.validator.js';
 
-export function createRoutes(env: Environment, connectionString: string, useLocalPostgres: boolean, logger: Logger, config: Config) {
+export function createRoutes(connectionString: string, logger: Logger, config: Config) {
   const app = new Hono();
-  const db = getDb(env, connectionString, useLocalPostgres, logger);
+  const db = getDb(connectionString, logger);
 
   // Initialize resources
   const escrowLockResource = new EscrowLockResource(db, logger);

@@ -1,14 +1,40 @@
-import { eq, desc, inArray } from 'drizzle-orm';
 import type { Logger } from '@harbor/logger';
+import type { Sql } from 'postgres';
 import { Temporal } from 'temporal-polyfill';
-import { getDb, ledgerEntries, type LedgerEntryRow } from '../store/index.js';
 import { LedgerEntry, LedgerEntryType, LedgerEntryStatus } from '../../public/model/ledgerEntry.js';
 import { LedgerEntryRecord } from '../records/ledgerEntryRecord.js';
 import { Money } from '../../public/model/money.js';
 
+interface LedgerEntryRow {
+  id: string;
+  agent_id: string;
+  wallet_id: string;
+  type: string;
+  status: string;
+  external_provider: string | null;
+  external_transaction_id: string | null;
+  external_amount: number | null;
+  external_currency: string | null;
+  external_status: string | null;
+  external_completed_at: Date | null;
+  internal_transaction_id: string | null;
+  internal_amount: number;
+  internal_currency: string;
+  internal_status: string | null;
+  internal_completed_at: Date | null;
+  reconciled_at: Date | null;
+  reconciliation_notes: string | null;
+  platform_fee: number | null;
+  external_provider_fee: number | null;
+  description: string;
+  metadata: Record<string, unknown> | null;
+  created_at: Date;
+  updated_at: Date;
+}
+
 export class LedgerEntryResource {
   constructor(
-    private readonly db: ReturnType<typeof getDb>,
+    private readonly sql: Sql,
     private readonly logger: Logger
   ) {}
 
@@ -31,25 +57,24 @@ export class LedgerEntryResource {
   }): Promise<LedgerEntry> {
     this.logger.debug({ data }, 'Creating onramp ledger entry');
 
-    const [ledgerEntryRow] = await this.db
-      .insert(ledgerEntries)
-      .values({
-        agentId: data.agentId,
-        walletId: data.walletId,
-        type: 'ONRAMP',
-        status: 'PENDING',
-        externalProvider: data.externalProvider,
-        externalTransactionId: data.externalTransactionId,
-        externalAmount: data.externalAmount.amount,
-        externalCurrency: data.externalCurrency,
-        internalAmount: data.internalAmount.amount,
-        internalCurrency: data.internalCurrency,
-        platformFee: data.platformFee?.amount ?? 0,
-        externalProviderFee: data.externalProviderFee?.amount ?? 0,
-        description: data.description,
-        metadata: data.metadata,
-      })
-      .returning();
+    const [ledgerEntryRow] = await this.sql<LedgerEntryRow[]>`
+      INSERT INTO ledger_entries (
+        agent_id, wallet_id, type, status,
+        external_provider, external_transaction_id, external_amount, external_currency,
+        internal_amount, internal_currency,
+        platform_fee, external_provider_fee,
+        description, metadata
+      )
+      VALUES (
+        ${data.agentId}, ${data.walletId}, 'ONRAMP', 'PENDING',
+        ${data.externalProvider}, ${data.externalTransactionId},
+        ${data.externalAmount.amount}, ${data.externalCurrency},
+        ${data.internalAmount.amount}, ${data.internalCurrency},
+        ${data.platformFee?.amount ?? 0}, ${data.externalProviderFee?.amount ?? 0},
+        ${data.description}, ${(data.metadata ?? null) as any}
+      )
+      RETURNING *
+    `;
 
     if (!ledgerEntryRow) {
       throw new Error('Failed to create ledger entry');
@@ -69,16 +94,19 @@ export class LedgerEntryResource {
   ): Promise<LedgerEntry> {
     this.logger.debug({ id, externalStatus }, 'Updating external status');
 
-    const [updatedRow] = await this.db
-      .update(ledgerEntries)
-      .set({
-        externalStatus,
-        externalCompletedAt: externalCompletedAt ?? Temporal.Now.zonedDateTimeISO(),
-        status: 'EXTERNAL_COMPLETED',
-        updatedAt: Temporal.Now.zonedDateTimeISO(),
-      })
-      .where(eq(ledgerEntries.id, id))
-      .returning();
+    const completedAt = externalCompletedAt
+      ? new Date(externalCompletedAt.epochMilliseconds)
+      : new Date();
+
+    const [updatedRow] = await this.sql<LedgerEntryRow[]>`
+      UPDATE ledger_entries
+      SET external_status = ${externalStatus},
+          external_completed_at = ${completedAt},
+          status = 'EXTERNAL_COMPLETED',
+          updated_at = NOW()
+      WHERE id = ${id}
+      RETURNING *
+    `;
 
     if (!updatedRow) {
       throw new Error('Ledger entry not found');
@@ -99,17 +127,20 @@ export class LedgerEntryResource {
   ): Promise<LedgerEntry> {
     this.logger.debug({ id, internalTransactionId, internalStatus }, 'Updating internal status');
 
-    const [updatedRow] = await this.db
-      .update(ledgerEntries)
-      .set({
-        internalTransactionId,
-        internalStatus,
-        internalCompletedAt: internalCompletedAt ?? Temporal.Now.zonedDateTimeISO(),
-        status: 'INTERNAL_COMPLETED',
-        updatedAt: Temporal.Now.zonedDateTimeISO(),
-      })
-      .where(eq(ledgerEntries.id, id))
-      .returning();
+    const completedAt = internalCompletedAt
+      ? new Date(internalCompletedAt.epochMilliseconds)
+      : new Date();
+
+    const [updatedRow] = await this.sql<LedgerEntryRow[]>`
+      UPDATE ledger_entries
+      SET internal_transaction_id = ${internalTransactionId},
+          internal_status = ${internalStatus},
+          internal_completed_at = ${completedAt},
+          status = 'INTERNAL_COMPLETED',
+          updated_at = NOW()
+      WHERE id = ${id}
+      RETURNING *
+    `;
 
     if (!updatedRow) {
       throw new Error('Ledger entry not found');
@@ -125,16 +156,15 @@ export class LedgerEntryResource {
   async reconcile(id: string, notes?: string): Promise<LedgerEntry> {
     this.logger.debug({ id, notes }, 'Reconciling ledger entry');
 
-    const [updatedRow] = await this.db
-      .update(ledgerEntries)
-      .set({
-        status: 'RECONCILED',
-        reconciledAt: Temporal.Now.zonedDateTimeISO(),
-        reconciliationNotes: notes,
-        updatedAt: Temporal.Now.zonedDateTimeISO(),
-      })
-      .where(eq(ledgerEntries.id, id))
-      .returning();
+    const [updatedRow] = await this.sql<LedgerEntryRow[]>`
+      UPDATE ledger_entries
+      SET status = 'RECONCILED',
+          reconciled_at = NOW(),
+          reconciliation_notes = ${notes || null},
+          updated_at = NOW()
+      WHERE id = ${id}
+      RETURNING *
+    `;
 
     if (!updatedRow) {
       throw new Error('Ledger entry not found');
@@ -150,15 +180,14 @@ export class LedgerEntryResource {
   async markFailed(id: string, notes: string): Promise<LedgerEntry> {
     this.logger.debug({ id, notes }, 'Marking ledger entry as failed');
 
-    const [updatedRow] = await this.db
-      .update(ledgerEntries)
-      .set({
-        status: 'FAILED',
-        reconciliationNotes: notes,
-        updatedAt: Temporal.Now.zonedDateTimeISO(),
-      })
-      .where(eq(ledgerEntries.id, id))
-      .returning();
+    const [updatedRow] = await this.sql<LedgerEntryRow[]>`
+      UPDATE ledger_entries
+      SET status = 'FAILED',
+          reconciliation_notes = ${notes},
+          updated_at = NOW()
+      WHERE id = ${id}
+      RETURNING *
+    `;
 
     if (!updatedRow) {
       throw new Error('Ledger entry not found');
@@ -174,15 +203,14 @@ export class LedgerEntryResource {
   async markForManualReview(id: string, notes: string): Promise<LedgerEntry> {
     this.logger.debug({ id, notes }, 'Marking ledger entry for manual review');
 
-    const [updatedRow] = await this.db
-      .update(ledgerEntries)
-      .set({
-        status: 'REQUIRES_MANUAL_REVIEW',
-        reconciliationNotes: notes,
-        updatedAt: Temporal.Now.zonedDateTimeISO(),
-      })
-      .where(eq(ledgerEntries.id, id))
-      .returning();
+    const [updatedRow] = await this.sql<LedgerEntryRow[]>`
+      UPDATE ledger_entries
+      SET status = 'REQUIRES_MANUAL_REVIEW',
+          reconciliation_notes = ${notes},
+          updated_at = NOW()
+      WHERE id = ${id}
+      RETURNING *
+    `;
 
     if (!updatedRow) {
       throw new Error('Ledger entry not found');
@@ -196,14 +224,14 @@ export class LedgerEntryResource {
    * Find entries by agent ID
    */
   async findByAgentId(agentId: string, limit = 100): Promise<LedgerEntry[]> {
-    const ledgerEntryRows = await this.db
-      .select()
-      .from(ledgerEntries)
-      .where(eq(ledgerEntries.agentId, agentId))
-      .orderBy(desc(ledgerEntries.createdAt))
-      .limit(limit);
+    const ledgerEntryRows = await this.sql<LedgerEntryRow[]>`
+      SELECT * FROM ledger_entries
+      WHERE agent_id = ${agentId}
+      ORDER BY created_at DESC
+      LIMIT ${limit}
+    `;
 
-    return ledgerEntryRows.map((row: any) => {
+    return ledgerEntryRows.map((row) => {
       const record = this.rowToRecord(row);
       return this.recordToLedgerEntry(record);
     });
@@ -213,11 +241,11 @@ export class LedgerEntryResource {
    * Find entry by external transaction ID (to avoid duplicates)
    */
   async findByExternalTransactionId(externalTransactionId: string): Promise<LedgerEntry | null> {
-    const [ledgerEntryRow] = await this.db
-      .select()
-      .from(ledgerEntries)
-      .where(eq(ledgerEntries.externalTransactionId, externalTransactionId))
-      .limit(1);
+    const [ledgerEntryRow] = await this.sql<LedgerEntryRow[]>`
+      SELECT * FROM ledger_entries
+      WHERE external_transaction_id = ${externalTransactionId}
+      LIMIT 1
+    `;
 
     if (!ledgerEntryRow) {
       return null;
@@ -231,20 +259,14 @@ export class LedgerEntryResource {
    * Find unreconciled entries for background reconciliation job
    */
   async findUnreconciledEntries(limit = 100): Promise<LedgerEntry[]> {
-    const ledgerEntryRows = await this.db
-      .select()
-      .from(ledgerEntries)
-      .where(
-        inArray(ledgerEntries.status, [
-          'PENDING',
-          'EXTERNAL_COMPLETED',
-          'INTERNAL_COMPLETED',
-        ])
-      )
-      .orderBy(desc(ledgerEntries.createdAt))
-      .limit(limit);
+    const ledgerEntryRows = await this.sql<LedgerEntryRow[]>`
+      SELECT * FROM ledger_entries
+      WHERE status IN ('PENDING', 'EXTERNAL_COMPLETED', 'INTERNAL_COMPLETED')
+      ORDER BY created_at DESC
+      LIMIT ${limit}
+    `;
 
-    return ledgerEntryRows.map((row: any) => {
+    return ledgerEntryRows.map((row) => {
       const record = this.rowToRecord(row);
       return this.recordToLedgerEntry(record);
     });
@@ -254,14 +276,14 @@ export class LedgerEntryResource {
    * Find entries requiring manual review
    */
   async findEntriesForManualReview(limit = 100): Promise<LedgerEntry[]> {
-    const ledgerEntryRows = await this.db
-      .select()
-      .from(ledgerEntries)
-      .where(eq(ledgerEntries.status, 'REQUIRES_MANUAL_REVIEW'))
-      .orderBy(desc(ledgerEntries.createdAt))
-      .limit(limit);
+    const ledgerEntryRows = await this.sql<LedgerEntryRow[]>`
+      SELECT * FROM ledger_entries
+      WHERE status = 'REQUIRES_MANUAL_REVIEW'
+      ORDER BY created_at DESC
+      LIMIT ${limit}
+    `;
 
-    return ledgerEntryRows.map((row: any) => {
+    return ledgerEntryRows.map((row) => {
       const record = this.rowToRecord(row);
       return this.recordToLedgerEntry(record);
     });
@@ -271,11 +293,11 @@ export class LedgerEntryResource {
    * Find entry by ID
    */
   async findById(id: string): Promise<LedgerEntry> {
-    const [ledgerEntryRow] = await this.db
-      .select()
-      .from(ledgerEntries)
-      .where(eq(ledgerEntries.id, id))
-      .limit(1);
+    const [ledgerEntryRow] = await this.sql<LedgerEntryRow[]>`
+      SELECT * FROM ledger_entries
+      WHERE id = ${id}
+      LIMIT 1
+    `;
 
     if (!ledgerEntryRow) {
       throw new Error('Ledger entry not found');
@@ -288,29 +310,35 @@ export class LedgerEntryResource {
   private rowToRecord(row: LedgerEntryRow): LedgerEntryRecord {
     return {
       id: row.id,
-      agentId: row.agentId,
-      walletId: row.walletId,
+      agentId: row.agent_id,
+      walletId: row.wallet_id,
       type: row.type as LedgerEntryType,
       status: row.status as LedgerEntryStatus,
-      externalProvider: row.externalProvider,
-      externalTransactionId: row.externalTransactionId,
-      externalAmount: row.externalAmount,
-      externalCurrency: row.externalCurrency,
-      externalStatus: row.externalStatus,
-      externalCompletedAt: row.externalCompletedAt,
-      internalTransactionId: row.internalTransactionId,
-      internalAmount: row.internalAmount,
-      internalCurrency: row.internalCurrency,
-      internalStatus: row.internalStatus,
-      internalCompletedAt: row.internalCompletedAt,
-      reconciledAt: row.reconciledAt,
-      reconciliationNotes: row.reconciliationNotes,
-      platformFee: row.platformFee ?? 0,
-      externalProviderFee: row.externalProviderFee ?? 0,
+      externalProvider: row.external_provider ?? null,
+      externalTransactionId: row.external_transaction_id ?? null,
+      externalAmount: row.external_amount ?? null,
+      externalCurrency: row.external_currency ?? null,
+      externalStatus: row.external_status ?? null,
+      externalCompletedAt: row.external_completed_at
+        ? Temporal.Instant.fromEpochMilliseconds(row.external_completed_at.getTime()).toZonedDateTimeISO('UTC')
+        : null,
+      internalTransactionId: row.internal_transaction_id ?? null,
+      internalAmount: row.internal_amount,
+      internalCurrency: row.internal_currency,
+      internalStatus: row.internal_status ?? null,
+      internalCompletedAt: row.internal_completed_at
+        ? Temporal.Instant.fromEpochMilliseconds(row.internal_completed_at.getTime()).toZonedDateTimeISO('UTC')
+        : null,
+      reconciledAt: row.reconciled_at
+        ? Temporal.Instant.fromEpochMilliseconds(row.reconciled_at.getTime()).toZonedDateTimeISO('UTC')
+        : null,
+      reconciliationNotes: row.reconciliation_notes ?? null,
+      platformFee: row.platform_fee ?? 0,
+      externalProviderFee: row.external_provider_fee ?? 0,
       description: row.description,
-      metadata: row.metadata as Record<string, unknown> | undefined,
-      createdAt: row.createdAt,
-      updatedAt: row.updatedAt,
+      metadata: row.metadata || undefined,
+      createdAt: Temporal.Instant.fromEpochMilliseconds(row.created_at.getTime()).toZonedDateTimeISO('UTC'),
+      updatedAt: Temporal.Instant.fromEpochMilliseconds(row.updated_at.getTime()).toZonedDateTimeISO('UTC'),
     };
   }
 

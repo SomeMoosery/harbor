@@ -2,13 +2,14 @@ import { TenderingManager } from '../../private/managers/tendering.manager.js';
 import { AskResource } from '../../private/resources/ask.resource.js';
 import { BidResource } from '../../private/resources/bid.resource.js';
 import { ConflictError, ForbiddenError, NotFoundError } from '@harbor/errors';
-import { createTestDb } from '../setup/testDatabase.js';
+import { createTestDb, closeTestDb, cleanTestDb } from '../setup/testDatabase.js';
 import { createMockLogger } from '../setup/mockLogger.js';
 import { createMockUserClient } from '../setup/mockUserClient.js';
 import { createMockSettlementClient } from '../setup/mockSettlementClient.js';
+import type { Sql } from 'postgres';
 
 describe('TenderingManager', () => {
-  let db: ReturnType<typeof createTestDb>;
+  let sql: Sql;
   let tenderingManager: TenderingManager;
   let askResource: AskResource;
   let bidResource: BidResource;
@@ -16,14 +17,18 @@ describe('TenderingManager', () => {
   let mockUserClient: ReturnType<typeof createMockUserClient>;
   let mockSettlementClient: ReturnType<typeof createMockSettlementClient>;
 
-  beforeEach(() => {
-    db = createTestDb();
+  beforeAll(async () => {
+    sql = await createTestDb();
+  });
+
+  beforeEach(async () => {
+    await cleanTestDb();
     mockLogger = createMockLogger();
     mockUserClient = createMockUserClient();
     mockSettlementClient = createMockSettlementClient();
 
-    askResource = new AskResource(db, mockLogger);
-    bidResource = new BidResource(db, mockLogger);
+    askResource = new AskResource(sql, mockLogger);
+    bidResource = new BidResource(sql, mockLogger);
 
     tenderingManager = new TenderingManager(
       askResource,
@@ -544,5 +549,9 @@ describe('TenderingManager', () => {
         tenderingManager.submitDelivery(sellerAgentId, pendingBid.id)
       ).rejects.toThrow(ConflictError);
     });
+  });
+
+  afterAll(async () => {
+    await closeTestDb();
   });
 });

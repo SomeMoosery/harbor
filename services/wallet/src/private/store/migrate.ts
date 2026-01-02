@@ -1,25 +1,37 @@
 import type { Logger } from '@harbor/logger';
-import type { Environment } from '@harbor/config';
-import { runDatabaseMigrations } from '@harbor/db';
-import { getDb } from './index.js';
-import { createWalletSchema } from './schema-creator.js';
+import { fileURLToPath } from 'node:url';
+import { dirname, join } from 'node:path';
+import { runner } from 'node-pg-migrate';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 /**
  * Run database migrations for wallet service
- * Uses shared migration runner from @harbor/db
+ * Uses node-pg-migrate for migration management
  */
-export async function runMigrations(
-  env: Environment,
+export async function runWalletMigrations(
   connectionString: string,
-  useLocalPostgres: boolean,
   logger: Logger
 ): Promise<void> {
-  const db = getDb(env, connectionString, useLocalPostgres, logger);
+  const migrationsDir = join(__dirname, '../../../migrations');
 
-  await runDatabaseMigrations(db, logger, {
-    env,
-    useLocalPostgres,
-    migrationsFolder: './drizzle',
-    createLocalSchema: createWalletSchema,
-  });
+  logger.info({ migrationsDir }, 'Running database migrations');
+
+  try {
+    await runner({
+      databaseUrl: connectionString,
+      dir: migrationsDir,
+      direction: 'up',
+      migrationsTable: 'pgmigrations',
+      count: Infinity, // Run all pending migrations
+      verbose: false,
+      log: (msg) => logger.info(msg),
+    });
+
+    logger.info('Database migrations completed successfully');
+  } catch (error) {
+    logger.error({ error }, 'Database migration failed');
+    throw error;
+  }
 }

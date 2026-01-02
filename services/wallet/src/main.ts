@@ -2,7 +2,7 @@ import { serve } from '@hono/node-server';
 import { createConfig, SERVICE_PORTS } from '@harbor/config';
 import { createLogger } from '@harbor/logger';
 import { createRoutes } from './private/routes/index.js';
-import { runMigrations } from './private/store/migrate.js';
+import { runWalletMigrations } from './private/store/migrate.js';
 import { closeDb } from './private/store/index.js';
 
 const SERVICE_NAME = 'wallet';
@@ -19,17 +19,17 @@ async function startServer() {
   // Run migrations if configured (auto in local, manual in staging/prod)
   if (config.database.autoMigrate) {
     try {
-      await runMigrations(config.env, config.database.url, config.database.useLocalPostgres, logger);
+      await runWalletMigrations(config.database.url, logger);
     } catch (error) {
       logger.fatal({ error }, 'Failed to run migrations, shutting down');
       process.exit(1);
     }
   } else {
-    logger.info('Auto-migration disabled. Run migrations manually with: pnpm db:migrate');
+    logger.info('Auto-migration disabled. Run migrations manually with: pnpm migrate');
   }
 
-  // Create routes with environment-aware database
-  const app = createRoutes(config.env, config.database.url, config.database.useLocalPostgres, logger, config);
+  // Create routes with database connection
+  const app = createRoutes(config.env, config.database.url, logger, config);
 
   // Start HTTP server
   const server = serve(
@@ -56,7 +56,7 @@ async function startServer() {
       logger.info('HTTP server closed');
 
       try {
-        await closeDb(config.env, config.database.useLocalPostgres, logger);
+        await closeDb(logger);
         logger.info('Database connection closed');
         process.exit(0);
       } catch (error) {

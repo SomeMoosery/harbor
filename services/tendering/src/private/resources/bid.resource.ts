@@ -1,15 +1,27 @@
-import { eq, and, isNull } from 'drizzle-orm';
 import type { Logger } from '@harbor/logger';
+import type { Sql } from 'postgres';
 import { NotFoundError } from '@harbor/errors';
-import { getDb, bids, type BidRow } from '../store/index.js';
 import { Bid } from '../../public/model/bid.js';
 import { BidStatus } from '../../public/model/bidStatus.js';
 import { BidRecord } from '../records/bidRecord.js';
 import { Temporal } from 'temporal-polyfill';
 
+interface BidRow {
+  id: string;
+  ask_id: string;
+  agent_id: string;
+  proposed_price: number;
+  estimated_duration: number;
+  proposal: string;
+  status: string;
+  created_at: Date;
+  updated_at: Date;
+  deleted_at: Date | null;
+}
+
 export class BidResource {
   constructor(
-    private readonly db: ReturnType<typeof getDb>,
+    private readonly sql: Sql,
     private readonly logger: Logger
   ) {}
 
@@ -22,13 +34,20 @@ export class BidResource {
   }): Promise<Bid> {
     this.logger.info({ data }, 'Creating bid');
 
-    const [bidRow] = await this.db
-      .insert(bids)
-      .values({
-        ...data,
-        status: 'PENDING',
-      })
-      .returning();
+    const [bidRow] = await this.sql<BidRow[]>`
+      INSERT INTO bids (
+        ask_id, agent_id, proposed_price, estimated_duration, proposal, status
+      )
+      VALUES (
+        ${data.askId},
+        ${data.agentId},
+        ${data.proposedPrice},
+        ${data.estimatedDuration},
+        ${data.proposal},
+        'PENDING'
+      )
+      RETURNING *
+    `;
 
     if (!bidRow) {
       throw new Error('Failed to create bid');
@@ -39,10 +58,10 @@ export class BidResource {
   }
 
   async findById(id: string): Promise<Bid> {
-    const [bidRow] = await this.db
-      .select()
-      .from(bids)
-      .where(eq(bids.id, id));
+    const [bidRow] = await this.sql<BidRow[]>`
+      SELECT * FROM bids
+      WHERE id = ${id}
+    `;
 
     if (!bidRow) {
       throw new NotFoundError('Bid', id);
@@ -53,10 +72,11 @@ export class BidResource {
   }
 
   async findByAskId(askId: string): Promise<Bid[]> {
-    const result = await this.db
-      .select()
-      .from(bids)
-      .where(and(eq(bids.askId, askId), isNull(bids.deletedAt)));
+    const result = await this.sql<BidRow[]>`
+      SELECT * FROM bids
+      WHERE ask_id = ${askId}
+        AND deleted_at IS NULL
+    `;
 
     return result.map((row) => {
       const record = this.rowToRecord(row);
@@ -65,10 +85,11 @@ export class BidResource {
   }
 
   async findByAgentId(agentId: string): Promise<Bid[]> {
-    const result = await this.db
-      .select()
-      .from(bids)
-      .where(and(eq(bids.agentId, agentId), isNull(bids.deletedAt)));
+    const result = await this.sql<BidRow[]>`
+      SELECT * FROM bids
+      WHERE agent_id = ${agentId}
+        AND deleted_at IS NULL
+    `;
 
     return result.map((row) => {
       const record = this.rowToRecord(row);
@@ -77,11 +98,13 @@ export class BidResource {
   }
 
   async updateStatus(id: string, status: BidStatus): Promise<Bid> {
-    const [bidRow] = await this.db
-      .update(bids)
-      .set({ status, updatedAt: Temporal.Now.zonedDateTimeISO() })
-      .where(eq(bids.id, id))
-      .returning();
+    const [bidRow] = await this.sql<BidRow[]>`
+      UPDATE bids
+      SET status = ${status},
+          updated_at = NOW()
+      WHERE id = ${id}
+      RETURNING *
+    `;
 
     if (!bidRow) {
       throw new NotFoundError('Bid', id);
@@ -93,30 +116,30 @@ export class BidResource {
 
   async rejectOtherBids(askId: string, _acceptedBidId: string): Promise<void> {
     // TODO There should be a more transactional method that picks the winning bid and then rejects the others, again, TRANSACTIONALLY
-    await this.db
-      .update(bids)
-      .set({ status: 'REJECTED', updatedAt: Temporal.Now.zonedDateTimeISO() })
-      .where(
-        and(
-          eq(bids.askId, askId),
-          eq(bids.status, 'PENDING'),
-          isNull(bids.deletedAt)
-        )
-      );
+    await this.sql`
+      UPDATE bids
+      SET status = 'REJECTED',
+          updated_at = NOW()
+      WHERE ask_id = ${askId}
+        AND status = 'PENDING'
+        AND deleted_at IS NULL
+    `;
   }
 
   private rowToRecord(row: BidRow): BidRecord {
     return {
       id: row.id,
-      askId: row.askId,
-      agentId: row.agentId,
-      proposedPrice: row.proposedPrice ?? 0,
-      estimatedDuration: row.estimatedDuration ?? 0,
+      askId: row.ask_id,
+      agentId: row.agent_id,
+      proposedPrice: row.proposed_price ?? 0,
+      estimatedDuration: row.estimated_duration ?? 0,
       proposal: row.proposal,
       status: row.status as BidStatus,
-      createdAt: row.createdAt,
-      updatedAt: row.updatedAt,
-      deletedAt: row.deletedAt,
+      createdAt: Temporal.Instant.fromEpochMilliseconds(row.created_at.getTime()).toZonedDateTimeISO('UTC'),
+      updatedAt: Temporal.Instant.fromEpochMilliseconds(row.updated_at.getTime()).toZonedDateTimeISO('UTC'),
+      deletedAt: row.deleted_at
+        ? Temporal.Instant.fromEpochMilliseconds(row.deleted_at.getTime()).toZonedDateTimeISO('UTC')
+        : undefined,
     };
   }
 

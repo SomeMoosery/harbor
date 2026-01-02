@@ -1,14 +1,30 @@
-import { eq } from 'drizzle-orm';
 import type { Logger } from '@harbor/logger';
+import type { Sql } from 'postgres';
 import { NotFoundError } from '@harbor/errors';
-import { getDb, escrowLocks, type EscrowLockRow } from '../store/index.js';
 import { EscrowLock, EscrowLockStatus } from '../../public/model/escrowLock.js';
 import { EscrowLockRecord } from '../records/escrowLockRecord.js';
 import { Temporal } from 'temporal-polyfill';
 
+interface EscrowLockRow {
+  id: string;
+  ask_id: string;
+  bid_id: string;
+  buyer_wallet_id: string;
+  buyer_agent_id: string;
+  total_amount: number;
+  base_amount: number;
+  buyer_fee: number;
+  currency: string;
+  status: string;
+  lock_transaction_id: string | null;
+  metadata: Record<string, unknown> | null;
+  created_at: Date;
+  updated_at: Date;
+}
+
 export class EscrowLockResource {
   constructor(
-    private readonly db: ReturnType<typeof getDb>,
+    private readonly sql: Sql,
     private readonly logger: Logger
   ) {}
 
@@ -26,13 +42,27 @@ export class EscrowLockResource {
   }): Promise<EscrowLock> {
     this.logger.info({ data }, 'Creating escrow lock');
 
-    const [lockRow] = await this.db
-      .insert(escrowLocks)
-      .values({
-        ...data,
-        status: 'LOCKED',
-      })
-      .returning();
+    const [lockRow] = await this.sql<EscrowLockRow[]>`
+      INSERT INTO escrow_locks (
+        ask_id, bid_id, buyer_wallet_id, buyer_agent_id,
+        total_amount, base_amount, buyer_fee, currency,
+        status, lock_transaction_id, metadata
+      )
+      VALUES (
+        ${data.askId},
+        ${data.bidId},
+        ${data.buyerWalletId},
+        ${data.buyerAgentId},
+        ${data.totalAmount},
+        ${data.baseAmount},
+        ${data.buyerFee},
+        ${data.currency},
+        'LOCKED',
+        ${data.lockTransactionId || null},
+        ${(data.metadata ?? null) as any}
+      )
+      RETURNING *
+    `;
 
     if (!lockRow) {
       throw new Error('Failed to create escrow lock');
@@ -43,10 +73,10 @@ export class EscrowLockResource {
   }
 
   async findById(id: string): Promise<EscrowLock> {
-    const [lockRow] = await this.db
-      .select()
-      .from(escrowLocks)
-      .where(eq(escrowLocks.id, id));
+    const [lockRow] = await this.sql<EscrowLockRow[]>`
+      SELECT * FROM escrow_locks
+      WHERE id = ${id}
+    `;
 
     if (!lockRow) {
       throw new NotFoundError('EscrowLock', id);
@@ -57,10 +87,10 @@ export class EscrowLockResource {
   }
 
   async findByBidId(bidId: string): Promise<EscrowLock | null> {
-    const [lockRow] = await this.db
-      .select()
-      .from(escrowLocks)
-      .where(eq(escrowLocks.bidId, bidId));
+    const [lockRow] = await this.sql<EscrowLockRow[]>`
+      SELECT * FROM escrow_locks
+      WHERE bid_id = ${bidId}
+    `;
 
     if (!lockRow) {
       return null;
@@ -73,14 +103,13 @@ export class EscrowLockResource {
   async updateStatus(id: string, status: EscrowLockStatus): Promise<EscrowLock> {
     this.logger.info({ escrowLockId: id, status }, 'Updating escrow lock status');
 
-    const [lockRow] = await this.db
-      .update(escrowLocks)
-      .set({
-        status,
-        updatedAt: Temporal.Now.zonedDateTimeISO(),
-      })
-      .where(eq(escrowLocks.id, id))
-      .returning();
+    const [lockRow] = await this.sql<EscrowLockRow[]>`
+      UPDATE escrow_locks
+      SET status = ${status},
+          updated_at = NOW()
+      WHERE id = ${id}
+      RETURNING *
+    `;
 
     if (!lockRow) {
       throw new NotFoundError('EscrowLock', id);
@@ -93,19 +122,19 @@ export class EscrowLockResource {
   private rowToRecord(row: EscrowLockRow): EscrowLockRecord {
     return {
       id: row.id,
-      askId: row.askId,
-      bidId: row.bidId,
-      buyerWalletId: row.buyerWalletId,
-      buyerAgentId: row.buyerAgentId,
-      totalAmount: row.totalAmount,
-      baseAmount: row.baseAmount,
-      buyerFee: row.buyerFee,
+      askId: row.ask_id,
+      bidId: row.bid_id,
+      buyerWalletId: row.buyer_wallet_id,
+      buyerAgentId: row.buyer_agent_id,
+      totalAmount: row.total_amount,
+      baseAmount: row.base_amount,
+      buyerFee: row.buyer_fee,
       currency: row.currency,
       status: row.status as EscrowLockStatus,
-      lockTransactionId: row.lockTransactionId || undefined,
-      metadata: row.metadata as Record<string, unknown> | undefined,
-      createdAt: row.createdAt,
-      updatedAt: row.updatedAt,
+      lockTransactionId: row.lock_transaction_id || undefined,
+      metadata: row.metadata || undefined,
+      createdAt: Temporal.Instant.fromEpochMilliseconds(row.created_at.getTime()).toZonedDateTimeISO('UTC'),
+      updatedAt: Temporal.Instant.fromEpochMilliseconds(row.updated_at.getTime()).toZonedDateTimeISO('UTC'),
     };
   }
 

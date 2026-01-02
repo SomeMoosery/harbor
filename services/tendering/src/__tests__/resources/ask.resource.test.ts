@@ -1,18 +1,27 @@
 import { AskResource } from '../../private/resources/ask.resource.js';
 import type { AskStatus } from '../../public/model/askStatus.js';
 import { NotFoundError } from '@harbor/errors';
-import { createTestDb } from '../setup/testDatabase.js';
+import { createTestDb, closeTestDb, cleanTestDb } from '../setup/testDatabase.js';
 import { createMockLogger } from '../setup/mockLogger.js';
+import type { Sql } from 'postgres';
 
 describe('AskResource', () => {
-  let db: ReturnType<typeof createTestDb>;
+  let sql: Sql;
   let askResource: AskResource;
   let mockLogger: ReturnType<typeof createMockLogger>;
 
-  beforeEach(() => {
-    db = createTestDb();
+  beforeAll(async () => {
+    sql = await createTestDb();
+  });
+
+  beforeEach(async () => {
+    await cleanTestDb();
     mockLogger = createMockLogger();
-    askResource = new AskResource(db, mockLogger);
+    askResource = new AskResource(sql, mockLogger);
+  });
+
+  afterAll(async () => {
+    await closeTestDb();
   });
 
   describe('create', () => {

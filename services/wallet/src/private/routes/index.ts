@@ -15,7 +15,7 @@ import { MockWalletProvider } from '../providers/mockWalletProvider.js';
 import { MockPaymentProvider } from '../providers/mockPaymentProvider.js';
 import { createWalletSchema, depositSchema, transferSchema } from '../validators/wallet.validator.js';
 
-export function createRoutes(env: Environment, connectionString: string, useLocalPostgres: boolean, logger: Logger, config: any) {
+export function createRoutes(env: Environment, connectionString: string, logger: Logger, config: any) {
   const app = new Hono();
 
   // Enable CORS for local development
@@ -25,12 +25,12 @@ export function createRoutes(env: Environment, connectionString: string, useLoca
     allowHeaders: ['Content-Type', 'Authorization'],
   }));
 
-  const db = getDb(env, connectionString, useLocalPostgres, logger);
+  const sql = getDb(connectionString, logger);
 
   // Initialize resources
-  const walletResource = new WalletResource(db, logger);
-  const transactionResource = new TransactionResource(db, logger);
-  const ledgerEntryResource = new LedgerEntryResource(db, logger);
+  const walletResource = new WalletResource(sql, logger);
+  const transactionResource = new TransactionResource(sql, logger);
+  const ledgerEntryResource = new LedgerEntryResource(sql, logger);
 
   // Initialize providers
   // Use mock providers or real providers based on config

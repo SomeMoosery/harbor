@@ -37,7 +37,7 @@ export class AgentResource {
 
     const [agentRow] = await this.sql<AgentRow[]>`
       INSERT INTO agents (user_id, name, capabilities, type)
-      VALUES (${data.userId}, ${data.name}, ${this.sql.json(data.capabilities)}, ${data.type})
+      VALUES (${data.userId}, ${data.name}, ${data.capabilities as any}, ${data.type})
       RETURNING *
     `;
 
