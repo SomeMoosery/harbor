@@ -46,8 +46,8 @@ export class ApiKeyController {
 
   async validateApiKey(c: Context) {
     try {
-      const { key } = await c.req.json();
-      const result = await this.manager.validateApiKey(key);
+      const { apiKey } = await c.req.json();
+      const result = await this.manager.validateApiKey(apiKey);
 
       if (!result) {
         return c.json({ valid: false }, 401);
