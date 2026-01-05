@@ -17,10 +17,13 @@ import { logger } from '../utils/logger.js';
 import { ApiError, AuthenticationError, NotFoundError } from '../utils/errors.js';
 
 export class HarborClient {
-  constructor(
-    private baseUrl: string,
-    private apiKey: string
-  ) {}
+  private agentId?: string;
+
+  constructor(private baseUrl: string) {}
+
+  setAgentId(agentId: string): void {
+    this.agentId = agentId;
+  }
 
   private async request<T>(
     method: string,
@@ -37,7 +40,7 @@ export class HarborClient {
         method,
         headers: {
           'Content-Type': 'application/json',
-          'X-Agent-Id': this.apiKey, // Use API key as agent ID for now
+          ...(this.agentId && { 'X-Agent-Id': this.agentId }),
           ...headers,
         },
         body: body ? JSON.stringify(body) : undefined,

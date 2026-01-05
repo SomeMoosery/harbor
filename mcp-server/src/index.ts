@@ -40,7 +40,7 @@ export async function main() {
   });
 
   // Initialize Harbor client
-  const harborClient = new HarborClient(config.harborBaseUrl, config.harborApiKey);
+  const harborClient = new HarborClient(config.harborBaseUrl);
 
   // Initialize polling services
   const bidPollingService = new BidPollingService(harborClient);

@@ -137,36 +137,32 @@ export class CircleWalletProvider implements WalletProvider {
     this.logger.info({ fromWalletId, toWalletId, amount }, 'Initiating Circle wallet transfer');
 
     try {
-      // TODO: use the Circle client for this (https://developers.circle.com/wallets/dev-controlled/transfer-tokens-across-wallets)
-      const entitySecretCiphertext = await generateEntitySecretCiphertext({
-        apiKey: this.apiKey,
-        entitySecret: this.entitySecret,
-      });
-
-      const response = await fetch('https://api.circle.com/v1/w3s/developer/transactions/transfer', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${this.apiKey}`,
-        },
-        body: JSON.stringify({
-          idempotencyKey: randomUUID(),
-          entitySecretCiphertext,
-          sourceWalletId: fromWalletId,
-          destinationWalletId: toWalletId,
-          amounts: [toDecimalString(amount)],
-          tokenId: process.env.CIRCLE_USDC_TOKEN_ID || 'USDC',
-        }),
-      });
-
-      if (!response.ok) {
-        const error = await response.text();
-        throw new Error(`Failed to transfer via Circle: ${error}`);
+      // Get the blockchain address of the destination wallet
+      const toWallet = await this.walletResource.findById(toWalletId);
+      if (!toWallet.walletAddress) {
+        throw new Error(`Destination wallet ${toWalletId} does not have a blockchain address`);
       }
 
-      const data = await response.json() as any;
-      const transactionId = data.data?.id;
+      const tokenId = process.env.CIRCLE_USDC_TOKEN_ID;
+      if (!tokenId) {
+        throw new Error('CIRCLE_USDC_TOKEN_ID environment variable is not set');
+      }
 
+      // Use the Circle SDK to create a transaction
+      const response = await this.client.createTransaction({
+        walletId: fromWalletId,
+        tokenId: tokenId,
+        destinationAddress: toWallet.walletAddress,
+        amount: [toDecimalString(amount)],
+        fee: {
+          type: 'level',
+          config: {
+            feeLevel: 'MEDIUM',
+          },
+        },
+      });
+
+      const transactionId = response.data?.id;
       if (!transactionId) {
         throw new Error('Failed to get transaction ID from Circle response');
       }

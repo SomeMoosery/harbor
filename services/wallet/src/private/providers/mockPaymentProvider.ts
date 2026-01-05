@@ -1,6 +1,7 @@
 import type { Logger } from '@harbor/logger';
 import type { PaymentProvider } from './paymentProvider.js';
 import type { Money } from '../../public/model/money.js';
+import { randomUUID } from 'crypto';
 
 /**
  * Mock payment provider for local testing
@@ -23,7 +24,7 @@ export class MockPaymentProvider implements PaymentProvider {
     status: 'pending' | 'completed' | 'failed';
     amount: Money;
   }> {
-    const transactionId = `mock-payment-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+    const transactionId = `${randomUUID()}`;
 
     // For now, all deposits succeed immediately
     // Future: Check metadata for test scenarios like { simulateFailure: true }
@@ -58,7 +59,7 @@ export class MockPaymentProvider implements PaymentProvider {
     status: 'pending' | 'completed' | 'failed';
     amount: Money;
   }> {
-    const transactionId = `mock-payout-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+    const transactionId = `${randomUUID()}`;
 
     // For now, all withdrawals succeed immediately
     const status = 'completed';
@@ -107,7 +108,7 @@ export class MockPaymentProvider implements PaymentProvider {
     successUrl: string;
     cancelUrl: string;
   }): Promise<{ sessionId: string; url: string }> {
-    const sessionId = `mock-session-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+    const sessionId = `${randomUUID()}`;
 
     this.logger.info(
       {

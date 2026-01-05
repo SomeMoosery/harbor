@@ -46,6 +46,9 @@ export async function authenticateUser(
     // Initialize session
     session.initialize(input.apiKey, userId, agent.id);
 
+    // Set the agent ID on the client for future requests
+    client.setAgentId(agent.id);
+
     return {
       success: true,
       userId: user.id,

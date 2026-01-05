@@ -1,6 +1,7 @@
 import type { Logger } from '@harbor/logger';
 import type { WalletProvider } from './walletProvider.js';
 import type { Money } from '../../public/model/money.js';
+import { randomUUID } from 'crypto';
 
 /**
  * Mock wallet provider for local testing
@@ -14,7 +15,7 @@ export class MockWalletProvider implements WalletProvider {
   constructor(private logger: Logger) {}
 
   async createWallet(agentId: string): Promise<{ walletId: string; walletAddress: string }> {
-    const walletId = `mock-wallet-${agentId}`;
+    const walletId = `${randomUUID()}`;
     const walletAddress = `0x${Math.random().toString(16).substring(2, 42).padEnd(40, '0')}`;
     this.logger.info({ agentId, walletId, walletAddress }, 'Mock wallet created');
     return { walletId, walletAddress };
@@ -32,7 +33,7 @@ export class MockWalletProvider implements WalletProvider {
   async transfer(fromWalletId: string, toWalletId: string, amount: Money): Promise<string> {
     // Mock provider doesn't validate wallets or balances - that's done at the manager level
     // using the database. Just simulate a successful transfer.
-    const transactionId = `mock-tx-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+    const transactionId = `${randomUUID()}`;
     this.logger.info({ fromWalletId, toWalletId, amount, transactionId }, 'Mock transfer completed');
     return transactionId;
   }
