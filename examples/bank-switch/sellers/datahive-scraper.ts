@@ -18,8 +18,8 @@ import { WalletClient } from '../../../services/wallet/src/public/client/index.j
 const logger = createLogger({ service: 'datahive-seller' });
 
 // Agent configuration
-const AGENT_ID = 'd106031d-6057-447d-b8d9-3cb79f09b72e'; // Using same agent for demo
-const WALLET_ID = '1501f331-25a8-42a8-b9c2-44fe8621cfe9';
+const AGENT_ID = '38d4111a-29b0-4dc4-bdf6-bbc4b3d62201';
+const WALLET_ID = '114001d8-137f-470f-bdec-a7c91458e71a';
 
 const tenderingClient = new TenderingClient('http://localhost:3001');
 const walletClient = new WalletClient('http://localhost:3003');
@@ -89,7 +89,7 @@ function shouldBidOnAsk(ask: any): boolean {
 }
 
 async function createBidForAsk(ask: any) {
-  const proposedPrice = 0.5; // Competitive pricing for automated scraping
+  const proposedPrice = 0.25; // Competitive pricing for automated scraping
   const estimatedDays = 2; // 2-day turnaround
 
   const proposal = `DataHive Analytics - Automated Web Scraping Solution
@@ -185,6 +185,7 @@ function generateBankData() {
 }
 
 async function monitorAcceptedBids(myBids: Map<string, any>) {
+  // TODO this will just continually retry until the deliveyr succeeds... not great, but fine for a demo.
   while (true) {
     try {
       // Check all asks we've bid on

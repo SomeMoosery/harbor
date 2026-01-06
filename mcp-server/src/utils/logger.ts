@@ -22,27 +22,32 @@ class Logger {
     return `[${timestamp}] [${level.toUpperCase()}] ${message}${dataStr}`;
   }
 
+  private output(level: LogLevel, message: string, data?: unknown): void {
+    const line = this.formatMessage(level, message, data);
+    process.stderr.write(`${line}\n`);
+  }
+
   debug(message: string, data?: unknown): void {
     if (this.shouldLog('debug')) {
-      console.debug(this.formatMessage('debug', message, data));
+      this.output('debug', message, data);
     }
   }
 
   info(message: string, data?: unknown): void {
     if (this.shouldLog('info')) {
-      console.info(this.formatMessage('info', message, data));
+      this.output('info', message, data);
     }
   }
 
   warn(message: string, data?: unknown): void {
     if (this.shouldLog('warn')) {
-      console.warn(this.formatMessage('warn', message, data));
+      this.output('warn', message, data);
     }
   }
 
   error(message: string, data?: unknown): void {
     if (this.shouldLog('error')) {
-      console.error(this.formatMessage('error', message, data));
+      this.output('error', message, data);
     }
   }
 }

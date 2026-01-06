@@ -41,12 +41,14 @@ export class EscrowSettlementStrategy implements SettlementStrategy {
 
     // Get buyer's wallet
     const buyerWallet = await this.walletClient.getWalletByAgentId(params.buyerAgentId);
+    this.logger.info({ buyerWallet }, 'Buyer wallet');
 
     // Check buyer has sufficient funds
     const balance = await this.walletClient.getBalance(buyerWallet.id);
     if (balance.available.amount < totalAmount) {
       throw new InsufficientFundsError(totalAmount, balance.available.amount);
     }
+    this.logger.info({ balance }, 'Balance');
 
     // Get platform escrow wallet
     const escrowWallet = await this.walletClient.getWalletByAgentId(this.config.wallets.escrowAgentId);

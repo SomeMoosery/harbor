@@ -133,13 +133,16 @@ export class CircleWalletProvider implements WalletProvider {
     }
   }
 
+  // We're passing in the database wallet ID, not the Circle wallet ID
+  // TODO make this clearer and turn these into stronger-typed IDs.
   async transfer(fromWalletId: string, toWalletId: string, amount: Money): Promise<string> {
     this.logger.info({ fromWalletId, toWalletId, amount }, 'Initiating Circle wallet transfer');
 
     try {
-      // Get the blockchain address of the destination wallet
+      // Get the blockchain address of the source and destination wallets
+      const fromWallet = await this.walletResource.findById(fromWalletId);
       const toWallet = await this.walletResource.findById(toWalletId);
-      if (!toWallet.walletAddress) {
+      if (!toWallet.walletAddress || !fromWallet.circleWalletId) {
         throw new Error(`Destination wallet ${toWalletId} does not have a blockchain address`);
       }
 
@@ -148,9 +151,11 @@ export class CircleWalletProvider implements WalletProvider {
         throw new Error('CIRCLE_USDC_TOKEN_ID environment variable is not set');
       }
 
+      this.logger.info({ fromWalletId, toWalletId, amount, toWalletAddress: toWallet.walletAddress, tokenId }, 'Creating Circle transaction');
+
       // Use the Circle SDK to create a transaction
       const response = await this.client.createTransaction({
-        walletId: fromWalletId,
+        walletId: fromWallet.circleWalletId,
         tokenId: tokenId,
         destinationAddress: toWallet.walletAddress,
         amount: [toDecimalString(amount)],

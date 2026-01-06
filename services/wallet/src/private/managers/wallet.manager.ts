@@ -36,6 +36,7 @@ export class WalletManager {
     }
 
     // Create wallet via provider (Circle)
+    // TODO we need to make this provider-agnostic
     const { walletId: circleWalletId, walletAddress } = await this.walletProvider.createWallet(agentId);
 
     // Store in database
@@ -73,7 +74,24 @@ export class WalletManager {
    */
   async getBalance(walletId: string): Promise<Balance> {
     // Verify wallet exists
-    await this.walletResource.findById(walletId);
+    const wallet = await this.walletResource.findById(walletId);
+
+    // TODO we should get it from the database instead of provider always
+    if (wallet.circleWalletId) {
+      this.logger.info({ walletId }, 'Getting Circle wallet balance');
+      const balance = await this.walletProvider.getBalance(wallet.circleWalletId);
+      return {
+        walletId,
+        available: {
+          amount: balance.amount,
+          currency: 'USDC',
+        },
+        total: {
+          amount: balance.amount,
+          currency: 'USDC',
+        },
+      };
+    }
 
     // Calculate balance from transactions
     const transactions = await this.transactionResource.findByWalletId(walletId, 10000);
@@ -225,13 +243,13 @@ export class WalletManager {
       const fromWallet = await this.walletResource.findById(fromWalletId);
       const toWallet = await this.walletResource.findById(toWalletId);
 
-      if (!fromWallet.circleWalletId || !toWallet.circleWalletId) {
-        throw new Error('Circle wallet ID not found');
+      if (!fromWallet.id || !toWallet.id) {
+        throw new Error('Wallet ID not found');
       }
 
       const externalTxId = await this.walletProvider.transfer(
-        fromWallet.circleWalletId,
-        toWallet.circleWalletId,
+        fromWallet.id,
+        toWallet.id,
         amount
       );
 

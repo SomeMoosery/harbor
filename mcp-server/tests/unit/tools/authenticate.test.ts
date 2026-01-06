@@ -1,14 +1,14 @@
 /**
- * Unit tests for authenticate tool
+ * Unit tests for authentication initialization
  */
 
 import { describe, it, expect, beforeEach, jest } from '@jest/globals';
-import { authenticateUser } from '../../../src/tools/authenticate.js';
+import { initializeAuthentication } from '../../../src/tools/authenticate.js';
 import { HarborClient } from '../../../src/services/harbor-client.js';
 import { session } from '../../../src/state/session.js';
 import { AuthenticationError } from '../../../src/utils/errors.js';
 
-describe('authenticateUser', () => {
+describe('initializeAuthentication', () => {
   let mockClient: HarborClient;
 
   beforeEach(() => {
@@ -20,6 +20,7 @@ describe('authenticateUser', () => {
       validateApiKey: jest.fn(),
       getUser: jest.fn(),
       getAgentsForUser: jest.fn(),
+      setAgentId: jest.fn(),
     } as any;
   });
 
@@ -43,18 +44,13 @@ describe('authenticateUser', () => {
       },
     ]);
 
-    const result = await authenticateUser(mockClient, { apiKey: 'test-key' });
-
-    expect(result.success).toBe(true);
-    expect(result.userId).toBe('user-123');
-    expect(result.agentId).toBe('agent-456');
-    expect(result.message).toContain('test@example.com');
-    expect(result.message).toContain('Test Agent');
+    await initializeAuthentication(mockClient, 'test-key');
 
     // Verify session was initialized
     const sessionState = session.getState();
     expect(sessionState.userId).toBe('user-123');
     expect(sessionState.agentId).toBe('agent-456');
+    expect(sessionState.apiKey).toBe('test-key');
   });
 
   it('should fail with invalid API key', async () => {
@@ -63,7 +59,7 @@ describe('authenticateUser', () => {
     });
 
     await expect(
-      authenticateUser(mockClient, { apiKey: 'invalid-key' })
+      initializeAuthentication(mockClient, 'invalid-key')
     ).rejects.toThrow(AuthenticationError);
   });
 
@@ -80,10 +76,9 @@ describe('authenticateUser', () => {
 
     (mockClient.getAgentsForUser as any).mockResolvedValue([]);
 
-    const result = await authenticateUser(mockClient, { apiKey: 'test-key' });
-
-    expect(result.success).toBe(false);
-    expect(result.message).toContain('No agents found');
+    await expect(
+      initializeAuthentication(mockClient, 'test-key')
+    ).rejects.toThrow(AuthenticationError);
   });
 
   it('should handle API errors gracefully', async () => {
@@ -92,7 +87,7 @@ describe('authenticateUser', () => {
     );
 
     await expect(
-      authenticateUser(mockClient, { apiKey: 'test-key' })
+      initializeAuthentication(mockClient, 'test-key')
     ).rejects.toThrow(AuthenticationError);
   });
 });

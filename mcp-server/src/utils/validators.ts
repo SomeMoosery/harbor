@@ -4,10 +4,6 @@
 
 import { z } from 'zod';
 
-export const authenticateSchema = z.object({
-  apiKey: z.string().min(1, 'API key is required'),
-});
-
 export const createAskSchema = z.object({
   description: z.string().min(10, 'Description must be at least 10 characters'),
   budget: z.number().positive('Budget must be positive'),

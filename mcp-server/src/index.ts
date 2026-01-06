@@ -15,13 +15,12 @@ import { HarborClient } from './services/harbor-client.js';
 import { BidPollingService } from './services/polling.js';
 import { DeliveryPollingService } from './services/delivery-polling.js';
 import { logger } from './utils/logger.js';
-import { authenticateUser } from './tools/authenticate.js';
+import { initializeAuthentication } from './tools/authenticate.js';
 import { createAsk } from './tools/create-ask.js';
 import { listBids } from './tools/list-bids.js';
 import { acceptBid } from './tools/accept-bid.js';
 import { getDelivery } from './tools/get-delivery.js';
 import {
-  authenticateSchema,
   createAskSchema,
   listBidsSchema,
   acceptBidSchema,
@@ -41,6 +40,10 @@ export async function main() {
 
   // Initialize Harbor client
   const harborClient = new HarborClient(config.harborBaseUrl);
+
+  // Authenticate using API key from environment
+  await initializeAuthentication(harborClient, config.harborApiKey);
+  logger.info('Authentication successful');
 
   // Initialize polling services
   const bidPollingService = new BidPollingService(harborClient);
@@ -63,21 +66,6 @@ export async function main() {
   server.setRequestHandler(ListToolsRequestSchema, async () => {
     return {
       tools: [
-        {
-          name: 'authenticate_user',
-          description:
-            'Authenticate with Harbor using your API key. This must be called first before using other tools.',
-          inputSchema: {
-            type: 'object',
-            properties: {
-              apiKey: {
-                type: 'string',
-                description: 'Your Harbor API key (starts with hbr_)',
-              },
-            },
-            required: ['apiKey'],
-          },
-        },
         {
           name: 'create_ask',
           description:
@@ -157,19 +145,6 @@ export async function main() {
       logger.info(`Tool called: ${name}`, { args });
 
       switch (name) {
-        case 'authenticate_user': {
-          const input = authenticateSchema.parse(args);
-          const result = await authenticateUser(harborClient, input);
-          return {
-            content: [
-              {
-                type: 'text',
-                text: JSON.stringify(result, null, 2),
-              },
-            ],
-          };
-        }
-
         case 'create_ask': {
           const input = createAskSchema.parse(args);
           const result = await createAsk(harborClient, input);
