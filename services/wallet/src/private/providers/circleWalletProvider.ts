@@ -4,11 +4,7 @@ import type { Money } from '../../public/model/money.js';
 import { toDecimalString, fromDecimalString } from '../../public/model/money.js';
 import { WalletResource } from '../resources/wallet.resource.js';
 import { Wallet } from '../../public/model/wallet.js';
-import { randomUUID } from 'crypto';
-import {
-  initiateDeveloperControlledWalletsClient,
-  generateEntitySecretCiphertext
-} from '@circle-fin/developer-controlled-wallets';
+import { initiateDeveloperControlledWalletsClient } from '@circle-fin/developer-controlled-wallets';
 import type { CircleDeveloperControlledWalletsClient } from '@circle-fin/developer-controlled-wallets';
 
 /**
@@ -23,8 +19,6 @@ import type { CircleDeveloperControlledWalletsClient } from '@circle-fin/develop
  */
 export class CircleWalletProvider implements WalletProvider {
   private client: CircleDeveloperControlledWalletsClient;
-  private apiKey: string;
-  private entitySecret: string;
   private isTestnet: boolean;
   private readonly walletResource: WalletResource;
 
@@ -37,8 +31,6 @@ export class CircleWalletProvider implements WalletProvider {
     },
     walletResource: WalletResource
   ) {
-    this.apiKey = config.apiKey;
-    this.entitySecret = config.entitySecret;
     this.isTestnet = config.isTestnet || true;
     this.walletResource = walletResource;
 
@@ -133,40 +125,41 @@ export class CircleWalletProvider implements WalletProvider {
     }
   }
 
+  // We're passing in the database wallet ID, not the Circle wallet ID
+  // TODO make this clearer and turn these into stronger-typed IDs.
   async transfer(fromWalletId: string, toWalletId: string, amount: Money): Promise<string> {
     this.logger.info({ fromWalletId, toWalletId, amount }, 'Initiating Circle wallet transfer');
 
     try {
-      // TODO: use the Circle client for this (https://developers.circle.com/wallets/dev-controlled/transfer-tokens-across-wallets)
-      const entitySecretCiphertext = await generateEntitySecretCiphertext({
-        apiKey: this.apiKey,
-        entitySecret: this.entitySecret,
-      });
-
-      const response = await fetch('https://api.circle.com/v1/w3s/developer/transactions/transfer', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${this.apiKey}`,
-        },
-        body: JSON.stringify({
-          idempotencyKey: randomUUID(),
-          entitySecretCiphertext,
-          sourceWalletId: fromWalletId,
-          destinationWalletId: toWalletId,
-          amounts: [toDecimalString(amount)],
-          tokenId: process.env.CIRCLE_USDC_TOKEN_ID || 'USDC',
-        }),
-      });
-
-      if (!response.ok) {
-        const error = await response.text();
-        throw new Error(`Failed to transfer via Circle: ${error}`);
+      // Get the blockchain address of the source and destination wallets
+      const fromWallet = await this.walletResource.findById(fromWalletId);
+      const toWallet = await this.walletResource.findById(toWalletId);
+      if (!toWallet.walletAddress || !fromWallet.circleWalletId) {
+        throw new Error(`Destination wallet ${toWalletId} does not have a blockchain address`);
       }
 
-      const data = await response.json() as any;
-      const transactionId = data.data?.id;
+      const tokenId = process.env.CIRCLE_USDC_TOKEN_ID;
+      if (!tokenId) {
+        throw new Error('CIRCLE_USDC_TOKEN_ID environment variable is not set');
+      }
 
+      this.logger.info({ fromWalletId, toWalletId, amount, toWalletAddress: toWallet.walletAddress, tokenId }, 'Creating Circle transaction');
+
+      // Use the Circle SDK to create a transaction
+      const response = await this.client.createTransaction({
+        walletId: fromWallet.circleWalletId,
+        tokenId: tokenId,
+        destinationAddress: toWallet.walletAddress,
+        amount: [toDecimalString(amount)],
+        fee: {
+          type: 'level',
+          config: {
+            feeLevel: 'MEDIUM',
+          },
+        },
+      });
+
+      const transactionId = response.data?.id;
       if (!transactionId) {
         throw new Error('Failed to get transaction ID from Circle response');
       }

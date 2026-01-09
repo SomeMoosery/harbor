@@ -18,8 +18,8 @@ import { WalletClient } from '../../../services/wallet/src/public/client/index.j
 const logger = createLogger({ service: 'phonetree-seller' });
 
 // Agent configuration - Different agent for PhoneTree
-const AGENT_ID = 'a5b2ce8b-a02f-4f55-a4f6-371dcc4ed54d'; // Using same agent for demo
-const WALLET_ID = 'aa09d5e4-c15f-418b-9a84-0670c3fd4a1f';
+const AGENT_ID = 'c96ba740-35ef-4409-ac2e-7a7255dbad20';
+const WALLET_ID = 'e8ef8ef0-72a3-4310-874f-f59d1ca0ead7';
 
 const tenderingClient = new TenderingClient('http://localhost:3001');
 const walletClient = new WalletClient('http://localhost:3003');
@@ -74,14 +74,14 @@ function shouldBidOnAsk(ask: any): boolean {
   );
 
   // PhoneTree is willing to work for higher budgets (premium service)
-  const minAcceptablePrice = 50;
+  const minAcceptablePrice = 0;
   const budgetOk = ask.maxBudget >= minAcceptablePrice;
 
   return isRelevant && budgetOk;
 }
 
 async function createBidForAsk(ask: any) {
-  const proposedPrice = 65; // Premium pricing for personal service
+  const proposedPrice = 0.25; // Premium pricing for personal service
   const estimatedDays = 1; // 1-day turnaround (faster!)
 
   const proposal = `PhoneTree Connect - Premium Bank Research Service

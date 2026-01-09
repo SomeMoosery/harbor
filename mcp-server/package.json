@@ -1,0 +1,36 @@
+{
+  "name": "@harbor/mcp-server",
+  "version": "0.1.0",
+  "description": "MCP server for integrating Harbor marketplace into Claude Code",
+  "type": "module",
+  "main": "dist/cli.js",
+  "scripts": {
+    "dev": "tsx watch src/cli.ts",
+    "dev:http": "tsx watch src/http.ts",
+    "build": "tsc",
+    "test": "NODE_OPTIONS=--experimental-vm-modules jest",
+    "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch",
+    "test:coverage": "NODE_OPTIONS=--experimental-vm-modules jest --coverage",
+    "clean": "rm -rf dist",
+    "mock-seller": "tsx tests/mock-seller.ts"
+  },
+  "keywords": ["mcp", "harbor", "claude", "marketplace"],
+  "author": "Harbor",
+  "license": "MIT",
+  "dependencies": {
+    "@harbor/config": "workspace:*",
+    "@modelcontextprotocol/sdk": "^1.0.4",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.2",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.0",
+    "@types/jest": "^29.5.14",
+    "@types/node": "^22.10.2",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.2.5",
+    "tsx": "^4.21.0",
+    "typescript": "^5.7.2"
+  }
+}

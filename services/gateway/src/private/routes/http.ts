@@ -115,5 +115,145 @@ export function createHttpRoutes(config: Config, logger: Logger, wsServer: { bro
     return c.json(await response.json(), response.status as any);
   });
 
+  // Proxy to user service
+  app.post('/api-keys/validate', async (c) => {
+    const body = await c.req.json();
+
+    const userUrl = `http://localhost:${SERVICE_PORTS.user}`;
+    const response = await fetch(`${userUrl}/api-keys/validate`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+    });
+
+    return c.json(await response.json(), response.status as any);
+  });
+
+  app.get('/users/:userId', async (c) => {
+    const userId = c.req.param('userId');
+
+    const userUrl = `http://localhost:${SERVICE_PORTS.user}`;
+    const response = await fetch(`${userUrl}/users/${userId}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    return c.json(await response.json(), response.status as any);
+  });
+
+  app.get('/users/:userId/agents', async (c) => {
+    const userId = c.req.param('userId');
+
+    const userUrl = `http://localhost:${SERVICE_PORTS.user}`;
+    const response = await fetch(`${userUrl}/users/${userId}/agents`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    return c.json(await response.json(), response.status as any);
+  });
+
+  app.post('/users/:userId/agents', async (c) => {
+    const userId = c.req.param('userId');
+    const body = await c.req.json();
+
+    const userUrl = `http://localhost:${SERVICE_PORTS.user}`;
+    const response = await fetch(`${userUrl}/users/${userId}/agents`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+    });
+
+    return c.json(await response.json(), response.status as any);
+  });
+
+  // Proxy to tendering service (without /api prefix for MCP server)
+  app.post('/asks', async (c) => {
+    const agentId = c.req.header('X-Agent-Id');
+    const body = await c.req.json();
+
+    const tenderingUrl = `http://localhost:${SERVICE_PORTS.tendering}`;
+    const response = await fetch(`${tenderingUrl}/asks`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Agent-Id': agentId || '',
+      },
+      body: JSON.stringify(body),
+    });
+
+    return c.json(await response.json(), response.status as any);
+  });
+
+  app.get('/asks/:id', async (c) => {
+    const id = c.req.param('id');
+
+    const tenderingUrl = `http://localhost:${SERVICE_PORTS.tendering}`;
+    const response = await fetch(`${tenderingUrl}/asks/${id}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    return c.json(await response.json(), response.status as any);
+  });
+
+  app.get('/asks/:askId/bids', async (c) => {
+    const askId = c.req.param('askId');
+
+    const tenderingUrl = `http://localhost:${SERVICE_PORTS.tendering}`;
+    const response = await fetch(`${tenderingUrl}/asks/${askId}/bids`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    return c.json(await response.json(), response.status as any);
+  });
+
+  app.post('/bids', async (c) => {
+    const agentId = c.req.header('X-Agent-Id');
+    const body = await c.req.json();
+
+    const tenderingUrl = `http://localhost:${SERVICE_PORTS.tendering}`;
+    const response = await fetch(`${tenderingUrl}/bids`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Agent-Id': agentId || '',
+      },
+      body: JSON.stringify(body),
+    });
+
+    return c.json(await response.json(), response.status as any);
+  });
+
+  app.post('/bids/accept', async (c) => {
+    const agentId = c.req.header('X-Agent-Id');
+    const body = await c.req.json();
+
+    const tenderingUrl = `http://localhost:${SERVICE_PORTS.tendering}`;
+    const response = await fetch(`${tenderingUrl}/bids/accept`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Agent-Id': agentId || '',
+      },
+      body: JSON.stringify(body),
+    });
+
+    return c.json(await response.json(), response.status as any);
+  });
+
   return app;
 }

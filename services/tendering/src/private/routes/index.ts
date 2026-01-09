@@ -14,7 +14,7 @@ import { acceptBidSchema, createBidSchema } from '../validators/bid.validator.js
 
 export function createRoutes(env: Environment, connectionString: string, useLocalPostgres: boolean, logger: Logger) {
   const app = new Hono();
-  const db = getDb(env, connectionString, useLocalPostgres, logger);
+  const db = getDb(connectionString, logger);
 
   // Initialize layers
   const userClient = new UserClient();

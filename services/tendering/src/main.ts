@@ -2,7 +2,7 @@ import { serve } from '@hono/node-server';
 import { createConfig, SERVICE_PORTS } from '@harbor/config';
 import { createLogger } from '@harbor/logger';
 import { createRoutes } from './private/routes/index.js';
-import { runMigrations } from './private/store/migrate.js';
+import { runTenderingMigrations } from './private/store/migrate.js';
 import { closeDb } from './private/store/index.js';
 
 const SERVICE_NAME = 'tendering';
@@ -19,7 +19,7 @@ async function startServer() {
   // Run migrations if configured (auto in local, manual in staging/prod)
   if (config.database.autoMigrate) {
     try {
-      await runMigrations(config.env, config.database.url, config.database.useLocalPostgres, logger);
+      await runTenderingMigrations(config.database.url, logger);
     } catch (error) {
       logger.fatal({ error }, 'Failed to run migrations, shutting down');
       process.exit(1);
@@ -56,7 +56,7 @@ async function startServer() {
       logger.info('HTTP server closed');
 
       try {
-        await closeDb(config.env, config.database.useLocalPostgres, logger);
+        await closeDb(logger);
         logger.info('Database connection closed');
         process.exit(0);
       } catch (error) {

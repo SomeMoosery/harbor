@@ -1,5 +1,5 @@
 import { serve } from '@hono/node-server';
-import { createConfig, SERVICE_PORTS } from '@harbor/config';
+import { createConfig, SERVICE_PORTS, waitForServiceHealth } from '@harbor/config';
 import { createLogger } from '@harbor/logger';
 import { createRoutes } from './private/routes/index.js';
 import { runSettlementMigrations } from './private/store/migrate.js';
@@ -30,6 +30,16 @@ async function startServer() {
     }
   } else {
     logger.info('Auto-migration disabled. Run migrations manually with: pnpm db:migrate');
+  }
+
+  // Wait for wallet service to be healthy before creating platform wallets
+  logger.info('Waiting for wallet service to be healthy...');
+  try {
+    await waitForServiceHealth('wallet', { maxRetries: 30, initialDelay: 1000 });
+    logger.info('Wallet service is healthy');
+  } catch (error) {
+    logger.fatal({ error }, 'Failed to connect to wallet service, shutting down');
+    process.exit(1);
   }
 
   // Ensure platform wallets exist for escrow and revenue collection
