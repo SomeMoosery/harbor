@@ -4,11 +4,7 @@ import type { Money } from '../../public/model/money.js';
 import { toDecimalString, fromDecimalString } from '../../public/model/money.js';
 import { WalletResource } from '../resources/wallet.resource.js';
 import { Wallet } from '../../public/model/wallet.js';
-import { randomUUID } from 'crypto';
-import {
-  initiateDeveloperControlledWalletsClient,
-  generateEntitySecretCiphertext
-} from '@circle-fin/developer-controlled-wallets';
+import { initiateDeveloperControlledWalletsClient } from '@circle-fin/developer-controlled-wallets';
 import type { CircleDeveloperControlledWalletsClient } from '@circle-fin/developer-controlled-wallets';
 
 /**
@@ -23,8 +19,6 @@ import type { CircleDeveloperControlledWalletsClient } from '@circle-fin/develop
  */
 export class CircleWalletProvider implements WalletProvider {
   private client: CircleDeveloperControlledWalletsClient;
-  private apiKey: string;
-  private entitySecret: string;
   private isTestnet: boolean;
   private readonly walletResource: WalletResource;
 
@@ -37,8 +31,6 @@ export class CircleWalletProvider implements WalletProvider {
     },
     walletResource: WalletResource
   ) {
-    this.apiKey = config.apiKey;
-    this.entitySecret = config.entitySecret;
     this.isTestnet = config.isTestnet || true;
     this.walletResource = walletResource;
 

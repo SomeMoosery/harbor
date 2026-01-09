@@ -27,6 +27,11 @@ export interface WaitForServiceOptions {
   timeout?: number;
 }
 
+interface HealthCheckResponse {
+  status?: string;
+  ready?: boolean;
+}
+
 /**
  * Wait for a service to be healthy by polling its /health endpoint
  * Uses exponential backoff with jitter for retries
@@ -63,7 +68,7 @@ export async function waitForServiceHealth(
 
       if (response.ok) {
         try {
-          const data = await response.json();
+          const data = await response.json() as HealthCheckResponse;
           if (data.status === 'ok' || data.ready === true) {
             return; // Service is healthy!
           }
