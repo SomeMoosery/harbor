@@ -10,6 +10,7 @@ import {
   ListToolsRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js';
 
+import { waitForServiceHealth } from '@harbor/config';
 import { loadConfig } from './config.js';
 import { HarborClient } from './services/harbor-client.js';
 import { BidPollingService } from './services/polling.js';
@@ -37,6 +38,17 @@ export async function main() {
     baseUrl: config.harborBaseUrl,
     logLevel: config.logLevel,
   });
+
+  // Wait for required services to be healthy before proceeding
+  logger.info('Waiting for required services to be healthy...');
+  try {
+    await waitForServiceHealth('gateway', { maxRetries: 30, initialDelay: 1000 });
+    await waitForServiceHealth('user', { maxRetries: 30, initialDelay: 1000 });
+    logger.info('All required services are healthy');
+  } catch (error) {
+    logger.error('Failed to connect to required services', error);
+    throw error;
+  }
 
   // Initialize Harbor client
   const harborClient = new HarborClient(config.harborBaseUrl);

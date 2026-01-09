@@ -94,3 +94,4 @@ export function createConfig(serviceName: string, defaultPort: number): Config {
 
 export * from './ports.js';
 export * from './environment.js';
+export * from './health.js';

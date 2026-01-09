@@ -46,29 +46,56 @@ export class HarborClient {
         body: body ? JSON.stringify(body) : undefined,
       });
 
-      const data = (await response.json()) as T;
+      // Try to parse response body as JSON, fall back to text if that fails
+      let data: T | undefined;
+      let errorText: string | undefined;
+
+      try {
+        data = (await response.json()) as T;
+      } catch (parseError) {
+        // Response is not JSON (possibly HTML error page)
+        const text = await response.text();
+        errorText = text.substring(0, 200); // Limit error text length
+        logger.error(`Failed to parse JSON response from ${method} ${url}`, {
+          status: response.status,
+          contentType: response.headers.get('content-type'),
+          preview: errorText,
+        });
+      }
 
       if (!response.ok) {
-        logger.error(`API error: ${response.status}`, data as unknown);
+        const errorMessage = data && typeof data === 'object' && 'message' in data
+          ? (data as any).message
+          : errorText || `API request failed: ${response.status}`;
+
+        logger.error(`API error: ${response.status}`, { data, errorText });
 
         if (response.status === 401 || response.status === 403) {
           throw new AuthenticationError(
-            (data as any).message || 'Authentication failed',
-            data as unknown
+            errorMessage || 'Authentication failed',
+            data as unknown || { errorText }
           );
         }
 
         if (response.status === 404) {
           throw new NotFoundError(
-            (data as any).message || 'Resource not found',
-            data as unknown
+            errorMessage || 'Resource not found',
+            data as unknown || { errorText }
           );
         }
 
         throw new ApiError(
-          (data as any).message || `API request failed: ${response.status}`,
+          errorMessage,
           response.status,
-          data as unknown
+          data as unknown || { errorText }
+        );
+      }
+
+      if (!data) {
+        throw new ApiError(
+          `Received non-JSON response from ${method} ${url}`,
+          response.status,
+          { errorText }
         );
       }
 
