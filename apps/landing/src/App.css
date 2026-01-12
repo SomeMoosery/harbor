@@ -1,0 +1,342 @@
+:root {
+  --blue: #0066FF;
+  --black: #000000;
+  --white: #FFFFFF;
+}
+
+.app {
+  min-height: 100vh;
+  background: var(--white);
+  position: relative;
+  padding: 4rem 2rem 15rem 2rem;
+  overflow-x: hidden;
+}
+
+/* Main Title - Huge, dominant */
+.main-title {
+  font-family: 'Archivo Black', sans-serif;
+  font-size: clamp(8rem, 20vw, 18rem);
+  color: var(--black);
+  line-height: 0.85;
+  letter-spacing: -0.04em;
+  margin: 0;
+  position: absolute;
+  top: 10vh;
+  left: 5vw;
+  z-index: 5;
+  text-transform: uppercase;
+}
+
+/* Tagline */
+.tagline {
+  font-family: 'Darker Grotesque', sans-serif;
+  font-size: clamp(1.4rem, 2.5vw, 2rem);
+  font-weight: 500;
+  color: var(--black);
+  position: absolute;
+  top: 42vh;
+  left: 8vw;
+  max-width: 400px;
+  z-index: 6;
+  line-height: 1.3;
+}
+
+/* Early CTA button */
+.cta-button-early {
+  display: inline-block;
+  font-family: 'Darker Grotesque', sans-serif;
+  font-size: clamp(1.2rem, 1.8vw, 1.5rem);
+  font-weight: 600;
+  color: var(--white);
+  background: var(--blue);
+  padding: 1.2rem 3rem;
+  border-radius: 40px 50px 45px 48px;
+  text-decoration: none;
+  border: 3px solid var(--blue);
+  transition: all 0.1s ease;
+  box-shadow: 3px 3px 0 rgba(0, 0, 0, 0.15);
+  position: absolute;
+  top: 76vh;
+  left: 8vw;
+  z-index: 6;
+}
+
+.cta-button-early:hover {
+  background: var(--white);
+  color: var(--blue);
+  transform: translate(-2px, -2px);
+  box-shadow: 5px 5px 0 rgba(0, 0, 0, 0.15);
+}
+
+/* Intro text */
+.intro-text {
+  font-family: 'Darker Grotesque', sans-serif;
+  font-size: clamp(1.2rem, 2vw, 1.6rem);
+  font-weight: 400;
+  color: var(--black);
+  position: absolute;
+  top: 55vh;
+  right: 10vw;
+  max-width: 450px;
+  line-height: 1.5;
+  z-index: 6;
+}
+
+/* Label text */
+.label-text {
+  font-family: 'Archivo Black', sans-serif;
+  font-size: clamp(1.8rem, 3.5vw, 3rem);
+  color: var(--blue);
+  text-transform: lowercase;
+  letter-spacing: -0.01em;
+  position: absolute;
+  z-index: 3;
+  font-weight: 900;
+}
+
+.buyers-label {
+  top: 95vh;
+  left: 8vw;
+  transform: rotate(-4deg);
+}
+
+.sellers-label {
+  top: 220vh;
+  right: 10vw;
+  transform: rotate(3deg);
+}
+
+/* Text blocks - scattered */
+.text-block {
+  position: absolute;
+  background: var(--white);
+  border: 3px solid var(--black);
+  padding: 2rem 2.5rem;
+  max-width: 380px;
+  z-index: 4;
+  border-radius: 6px 10px 8px 12px;
+  box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.1);
+  transition: all 0.1s ease;
+  cursor: pointer;
+}
+
+.text-block:hover {
+  border-color: var(--blue);
+  box-shadow: 6px 6px 0 rgba(0, 102, 255, 0.2);
+}
+
+.text-block h3 {
+  font-family: 'Darker Grotesque', sans-serif;
+  font-size: clamp(1.8rem, 3vw, 2.4rem);
+  font-weight: 600;
+  color: var(--black);
+  margin: 0 0 0.8rem 0;
+  line-height: 1.1;
+}
+
+.text-block p {
+  font-family: 'Darker Grotesque', sans-serif;
+  font-size: clamp(1.1rem, 1.8vw, 1.4rem);
+  font-weight: 400;
+  color: var(--black);
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* Buyer blocks */
+.buyer-1 {
+  top: 110vh;
+  left: 15vw;
+  transform: rotate(3deg);
+}
+
+.buyer-2 {
+  top: 125vh;
+  right: 18vw;
+  transform: rotate(-2.5deg);
+}
+
+.buyer-3 {
+  top: 155vh;
+  left: 25vw;
+  transform: rotate(1.5deg);
+}
+
+.buyer-4 {
+  top: 175vh;
+  right: 12vw;
+  transform: rotate(-3deg);
+}
+
+/* Seller blocks */
+.seller-1 {
+  top: 235vh;
+  left: 18vw;
+  transform: rotate(-2.5deg);
+}
+
+.seller-2 {
+  top: 250vh;
+  right: 15vw;
+  transform: rotate(2deg);
+}
+
+.seller-3 {
+  top: 280vh;
+  left: 12vw;
+  transform: rotate(3.5deg);
+}
+
+.seller-4 {
+  top: 300vh;
+  right: 20vw;
+  transform: rotate(-1.5deg);
+}
+
+/* CTA Section */
+.cta-section {
+  position: absolute;
+  top: 340vh;
+  left: 50%;
+  transform: translateX(-50%) rotate(-1deg);
+  text-align: center;
+  z-index: 6;
+  max-width: 600px;
+  width: 90%;
+}
+
+.cta-section h2 {
+  font-family: 'Archivo Black', sans-serif;
+  font-size: clamp(3rem, 8vw, 6rem);
+  color: var(--black);
+  margin: 0 0 1rem 0;
+  line-height: 1;
+  text-transform: lowercase;
+  letter-spacing: -0.02em;
+}
+
+.cta-section p {
+  font-family: 'Darker Grotesque', sans-serif;
+  font-size: clamp(1.3rem, 2.5vw, 1.8rem);
+  color: var(--black);
+  margin: 0 0 2.5rem 0;
+  font-weight: 400;
+  line-height: 1.4;
+}
+
+.cta-button {
+  display: inline-block;
+  font-family: 'Darker Grotesque', sans-serif;
+  font-size: clamp(1.3rem, 2vw, 1.6rem);
+  font-weight: 600;
+  color: var(--white);
+  background: var(--blue);
+  padding: 1.5rem 4rem;
+  border-radius: 40px 50px 45px 48px;
+  text-decoration: none;
+  border: 3px solid var(--blue);
+  transition: all 0.1s ease;
+  box-shadow: 3px 3px 0 rgba(0, 0, 0, 0.15);
+}
+
+.cta-button:hover {
+  background: var(--white);
+  color: var(--blue);
+  transform: translate(-2px, -2px);
+  box-shadow: 5px 5px 0 rgba(0, 0, 0, 0.15);
+}
+
+/* Responsive adjustments */
+@media (max-width: 1024px) {
+  .main-title {
+    top: 8vh;
+    left: 3vw;
+  }
+
+  .tagline {
+    top: 38vh;
+    left: 5vw;
+    max-width: 350px;
+  }
+
+  .cta-button-early {
+    top: 70vh;
+    left: 5vw;
+  }
+
+  .intro-text {
+    top: 58vh;
+    right: 5vw;
+    max-width: 400px;
+  }
+}
+
+@media (max-width: 768px) {
+  .app {
+    padding: 3rem 1.5rem 10rem 1.5rem;
+  }
+
+  /* Disable all animations on mobile */
+  * {
+    animation: none !important;
+    transition: none !important;
+  }
+
+  .main-title {
+    position: static;
+    margin-bottom: 2rem;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+
+  .tagline {
+    position: static;
+    margin-bottom: 2rem;
+    max-width: 100%;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+
+  .cta-button-early {
+    position: static;
+    margin-bottom: 2rem;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+
+  .intro-text {
+    position: static;
+    margin-bottom: 4rem;
+    max-width: 100%;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+
+  .label-text {
+    position: static;
+    margin: 4rem 0 2rem 0;
+    transform: none !important;
+    opacity: 1 !important;
+  }
+
+  .text-block {
+    position: static;
+    margin-bottom: 2rem;
+    transform: none !important;
+    max-width: 100%;
+    opacity: 1 !important;
+  }
+
+  .text-block:hover {
+    transform: none !important;
+    scale: 1 !important;
+  }
+
+  .cta-section {
+    position: static;
+    transform: none;
+    margin-top: 4rem;
+    width: 100%;
+    opacity: 1 !important;
+  }
+}
