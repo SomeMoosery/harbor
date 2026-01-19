@@ -26,28 +26,24 @@ body, html {
   overflow: hidden;
 }
 
-.content {
-  position: absolute;
-  top: 35%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  text-align: center;
-  z-index: 10;
-  max-width: 90%;
-}
-
-/* Main Title */
+/* Main Title - fixed to top */
 .main-title {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 2rem;
   font-family: 'Archivo Black', sans-serif;
   font-size: clamp(4rem, 12vw, 10rem);
   color: var(--black);
   line-height: 0.9;
   letter-spacing: -0.03em;
-  margin: 0 0 1.5rem 0;
+  margin: 0;
   text-transform: uppercase;
   -webkit-text-stroke: 10px var(--white);
   text-stroke: 10px var(--white);
   paint-order: stroke fill;
+  z-index: 10;
 }
 
 /* Tagline */
@@ -63,8 +59,13 @@ body, html {
   paint-order: stroke fill;
 }
 
-/* CTA button */
+/* CTA button - fixed to bottom */
 .cta-button {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  margin-bottom: 2rem;
   display: inline-block;
   font-family: 'Darker Grotesque', sans-serif;
   font-size: clamp(1.2rem, 1.8vw, 1.5rem);
@@ -75,15 +76,14 @@ body, html {
   border-radius: 40px 50px 45px 48px;
   text-decoration: none;
   border: 3px solid var(--blue);
-  transition: all 0.1s ease;
+  transition: color 0.3s ease, background 0.3s ease;
   box-shadow: 3px 3px 0 rgba(0, 0, 0, 0.2);
+  z-index: 10;
 }
 
 .cta-button:hover {
   background: var(--white);
   color: var(--blue);
-  transform: translate(-2px, -2px);
-  box-shadow: 5px 5px 0 rgba(0, 0, 0, 0.3);
 }
 
 /* Mobile adjustments */
@@ -103,27 +103,17 @@ body, html {
     transition: none !important;
   }
 
-  .content {
-    opacity: 1 !important;
-    transform: translate(-50%, -50%) !important;
-  }
-
   .main-title {
     opacity: 1 !important;
-    transform: none !important;
-  }
-
-  .tagline {
-    opacity: 1 !important;
-    transform: none !important;
+    transform: translateX(-50%) !important;
   }
 
   .cta-button {
     opacity: 1 !important;
-    transform: none !important;
+    transform: translateX(-50%) !important;
   }
 
   .cta-button:hover {
-    transform: none !important;
+    transform: translateX(-50%) !important;
   }
 }
