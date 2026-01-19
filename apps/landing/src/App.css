@@ -1,0 +1,119 @@
+:root {
+  --blue: #0066FF;
+  --black: #000000;
+  --white: #FFFFFF;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body, html {
+  height: 100%;
+  overflow: hidden;
+}
+
+.app {
+  width: 100%;
+  height: 100vh;
+  background-image: url('/harbor-background.png');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Main Title - fixed to top */
+.main-title {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 2rem;
+  font-family: 'Archivo Black', sans-serif;
+  font-size: clamp(4rem, 12vw, 10rem);
+  color: var(--black);
+  line-height: 0.9;
+  letter-spacing: -0.03em;
+  margin: 0;
+  text-transform: uppercase;
+  -webkit-text-stroke: 10px var(--white);
+  text-stroke: 10px var(--white);
+  paint-order: stroke fill;
+  z-index: 10;
+}
+
+/* Tagline */
+.tagline {
+  font-family: 'Darker Grotesque', sans-serif;
+  font-size: clamp(1.3rem, 2.5vw, 2rem);
+  font-weight: 500;
+  color: var(--black);
+  margin: 0 0 3rem 0;
+  line-height: 1.3;
+  -webkit-text-stroke: 3.5px var(--white);
+  text-stroke: 3.5px var(--white);
+  paint-order: stroke fill;
+}
+
+/* CTA button - fixed to bottom */
+.cta-button {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  margin-bottom: 2rem;
+  display: inline-block;
+  font-family: 'Darker Grotesque', sans-serif;
+  font-size: clamp(1.2rem, 1.8vw, 1.5rem);
+  font-weight: 600;
+  color: var(--white);
+  background: var(--blue);
+  padding: 1.2rem 3rem;
+  border-radius: 40px 50px 45px 48px;
+  text-decoration: none;
+  border: 3px solid var(--blue);
+  transition: color 0.3s ease, background 0.3s ease;
+  box-shadow: 3px 3px 0 rgba(0, 0, 0, 0.2);
+  z-index: 10;
+}
+
+.cta-button:hover {
+  background: var(--white);
+  color: var(--blue);
+}
+
+/* Mobile adjustments */
+@media (max-width: 768px) {
+  body, html {
+    overflow: auto;
+  }
+
+  .app {
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  /* Disable animations on mobile */
+  * {
+    animation: none !important;
+    transition: none !important;
+  }
+
+  .main-title {
+    opacity: 1 !important;
+    transform: translateX(-50%) !important;
+  }
+
+  .cta-button {
+    opacity: 1 !important;
+    transform: translateX(-50%) !important;
+  }
+
+  .cta-button:hover {
+    transform: translateX(-50%) !important;
+  }
+}
