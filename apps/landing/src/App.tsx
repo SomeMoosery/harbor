@@ -16,13 +16,15 @@ function App() {
 
       {/* CTA Button - fixed to bottom */}
       <motion.a
-        href="#"
+        href="https://calendar.app.google/wQJ3Eef44TWSvSek8"
+        target="_blank"
+        rel="noopener noreferrer"
         className="cta-button"
         initial={{ opacity: 0, y: 20, x: '-50%' }}
         animate={{ opacity: 1, y: 0, x: '-50%' }}
         transition={{ duration: 0.2, delay: 0.1 }}
       >
-        Schedule a Call
+        Join the beta
       </motion.a>
     </div>
   );
