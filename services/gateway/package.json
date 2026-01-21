@@ -16,9 +16,12 @@
     "@hono/node-server": "^1.19.7",
     "hono": "^4.10.8",
     "ws": "^8.18.0",
-    "temporal-polyfill": "^0.2.5"
+    "temporal-polyfill": "^0.2.5",
+    "googleapis": "^144.0.0",
+    "cookie": "^1.0.2"
   },
   "devDependencies": {
+    "@types/cookie": "^1.0.0",
     "@types/ws": "^8.5.13",
     "tsx": "^4.19.2",
     "typescript": "^5.7.2"

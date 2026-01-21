@@ -208,3 +208,244 @@ button:disabled {
   border-radius: 3px;
   font-size: 12px;
 }
+
+/* Loading state */
+.loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 60vh;
+}
+
+.loading h2 {
+  color: #666;
+  font-weight: normal;
+}
+
+/* Login page */
+.login-section {
+  max-width: 400px;
+  margin: 0 auto;
+  text-align: center;
+}
+
+.google-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 12px 24px;
+  background: white;
+  color: #333;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 16px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.google-btn:hover {
+  background: #f5f5f5;
+  border-color: #ccc;
+}
+
+/* Header with logout */
+.header-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.logout-btn {
+  padding: 8px 16px;
+  background: #f3f4f6;
+  color: #374151;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.logout-btn:hover {
+  background: #e5e7eb;
+}
+
+/* Onboarding page */
+.onboarding-section {
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.account-type-options {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.account-type-option {
+  display: flex;
+  align-items: flex-start;
+  padding: 20px;
+  border: 2px solid #e5e7eb;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.account-type-option:hover {
+  border-color: #93c5fd;
+  background: #f0f9ff;
+}
+
+.account-type-option.selected {
+  border-color: #2563eb;
+  background: #eff6ff;
+}
+
+.account-type-option input {
+  margin-right: 16px;
+  margin-top: 4px;
+  width: 18px;
+  height: 18px;
+}
+
+.account-type-option .option-content h3 {
+  font-size: 18px;
+  color: #1f2937;
+  margin-bottom: 8px;
+}
+
+.account-type-option .option-content p {
+  font-size: 14px;
+  color: #6b7280;
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  body {
+    background: #1a1a1a;
+    color: #e0e0e0;
+  }
+
+  header,
+  .section {
+    background: #2a2a2a;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  }
+
+  h1 {
+    color: #60a5fa;
+  }
+
+  .subtitle {
+    color: #9ca3af;
+  }
+
+  .tabs {
+    border-bottom-color: #3f3f46;
+  }
+
+  .tab {
+    color: #9ca3af;
+  }
+
+  .tab:hover,
+  .tab.active {
+    color: #60a5fa;
+  }
+
+  .tab.active {
+    border-bottom-color: #60a5fa;
+  }
+
+  .section h2 {
+    color: #f3f4f6;
+  }
+
+  label {
+    color: #d1d5db;
+  }
+
+  input,
+  select,
+  textarea {
+    background: #3f3f46;
+    border-color: #52525b;
+    color: #e0e0e0;
+  }
+
+  input:focus,
+  select:focus,
+  textarea:focus {
+    border-color: #60a5fa;
+    box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.2);
+  }
+
+  .google-btn {
+    background: #3f3f46;
+    color: #e0e0e0;
+    border-color: #52525b;
+  }
+
+  .google-btn:hover {
+    background: #52525b;
+  }
+
+  .logout-btn {
+    background: #3f3f46;
+    color: #d1d5db;
+    border-color: #52525b;
+  }
+
+  .logout-btn:hover {
+    background: #52525b;
+  }
+
+  .account-type-option {
+    border-color: #3f3f46;
+  }
+
+  .account-type-option:hover {
+    border-color: #60a5fa;
+    background: #1e3a5f;
+  }
+
+  .account-type-option.selected {
+    border-color: #60a5fa;
+    background: #1e3a5f;
+  }
+
+  .account-type-option .option-content h3 {
+    color: #f3f4f6;
+  }
+
+  .account-type-option .option-content p {
+    color: #9ca3af;
+  }
+
+  .info-box {
+    background: #1e3a5f;
+    border-color: #60a5fa;
+    color: #93c5fd;
+  }
+
+  .info-box pre {
+    background: #3f3f46;
+    color: #e0e0e0;
+  }
+
+  .list-item {
+    background: #3f3f46;
+    border-color: #52525b;
+  }
+
+  .list-item h3 {
+    color: #f3f4f6;
+  }
+
+  .list-item code {
+    background: #52525b;
+  }
+}

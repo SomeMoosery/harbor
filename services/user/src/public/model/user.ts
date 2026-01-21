@@ -1,9 +1,12 @@
-import { UserType } from './userType.js';
+import { UserType, SubType } from './userType.js';
 
 export interface User {
   id: string;
   name: string;
-  type: UserType;
   email: string;
-  phone: string;
+  phone: string | null;
+  userType: UserType;
+  subType: SubType;
+  googleId: string | null;
+  onboardingCompleted: boolean;
 }

@@ -1,22 +1,34 @@
 import { z } from 'zod';
-import { userTypeValues } from '../../public/model/userType.js';
+import { userTypeValues, subTypeValues } from '../../public/model/userType.js';
 import { agentTypeValues } from '../../public/model/agentType.js';
-
-// Email validation - simple for now, can be enhanced
-const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-// Phone validation - simple pattern (digits, spaces, dashes, parentheses, plus)
-const phoneRegex = /^[\d\s\-\(\)\+]+$/;
-
-export const createUserSchema = z.object({
-  name: z.string().min(1).max(200),
-  type: z.enum(userTypeValues),
-  email: z.string().email().regex(emailRegex, 'Invalid email format'),
-  phone: z.string().min(10).max(20).regex(phoneRegex, 'Invalid phone format'),
-});
 
 export const createAgentSchema = z.object({
   name: z.string().min(1).max(200),
   capabilities: z.record(z.unknown()),
   type: z.enum(agentTypeValues),
+});
+
+export const completeOnboardingSchema = z.object({
+  userId: z.string().uuid(),
+  userType: z.enum(['HUMAN', 'AGENT']),
+  subType: z.enum(['BUSINESS', 'PERSONAL']).optional(),
+});
+
+export const changeUserTypeSchema = z.object({
+  userType: z.enum(['HUMAN', 'AGENT']),
+  subType: z.enum(['BUSINESS', 'PERSONAL']).optional(),
+});
+
+export const createSessionSchema = z.object({
+  googleId: z.string().min(1),
+  email: z.string().email(),
+  name: z.string().min(1),
+});
+
+export const validateSessionSchema = z.object({
+  sessionToken: z.string().uuid(),
+});
+
+export const logoutSchema = z.object({
+  sessionToken: z.string().uuid(),
 });
