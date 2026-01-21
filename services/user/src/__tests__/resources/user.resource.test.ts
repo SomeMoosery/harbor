@@ -1,5 +1,4 @@
 import { UserResource } from '../../private/resources/user.resource.js';
-import type { UserType } from '../../public/model/userType.js';
 import { NotFoundError } from '@harbor/errors';
 import { createTestDb, closeTestDb, cleanTestDb } from '../setup/testDatabase.js';
 import { createMockLogger } from '../setup/mockLogger.js';
@@ -24,18 +23,24 @@ describe('UserResource', () => {
     await closeTestDb();
   });
 
-  describe('create', () => {
+  describe('createFromOAuth', () => {
     it('should create a user and return it', async () => {
       const userData = {
         name: 'Alice Smith',
-        type: 'PERSONAL' as UserType,
         email: 'alice@example.com',
-        phone: '+1234567890',
+        googleId: 'google-alice-123',
       };
 
-      const user = await userResource.create(userData);
+      const user = await userResource.createFromOAuth(userData);
 
-      expect(user).toMatchObject(userData);
+      expect(user).toMatchObject({
+        name: userData.name,
+        email: userData.email,
+        googleId: userData.googleId,
+        userType: 'UNKNOWN',
+        subType: 'PERSONAL',
+        onboardingCompleted: false,
+      });
       expect(user.id).toBeDefined();
       expect(typeof user.id).toBe('string');
     });
@@ -43,33 +48,31 @@ describe('UserResource', () => {
     it('should throw error when email is duplicate', async () => {
       const userData = {
         name: 'Bob',
-        type: 'BUSINESS' as UserType,
         email: 'duplicate@example.com',
-        phone: '+1111111111',
+        googleId: 'google-bob-123',
       };
 
-      await userResource.create(userData);
+      await userResource.createFromOAuth(userData);
 
       await expect(
-        userResource.create({
+        userResource.createFromOAuth({
           ...userData,
-          phone: '+2222222222',
+          googleId: 'google-bob-456',
         })
       ).rejects.toThrow();
     });
 
-    it('should throw error when phone is duplicate', async () => {
+    it('should throw error when googleId is duplicate', async () => {
       const userData = {
         name: 'Charlie',
-        type: 'PERSONAL' as UserType,
         email: 'charlie1@example.com',
-        phone: '+3333333333',
+        googleId: 'google-charlie-123',
       };
 
-      await userResource.create(userData);
+      await userResource.createFromOAuth(userData);
 
       await expect(
-        userResource.create({
+        userResource.createFromOAuth({
           ...userData,
           email: 'charlie2@example.com',
         })
@@ -79,11 +82,10 @@ describe('UserResource', () => {
 
   describe('findById', () => {
     it('should find user by id', async () => {
-      const created = await userResource.create({
+      const created = await userResource.createFromOAuth({
         name: 'David Lee',
-        type: 'BUSINESS' as UserType,
         email: 'david@example.com',
-        phone: '+4444444444',
+        googleId: 'google-david-123',
       });
 
       const found = await userResource.findById(created.id);
@@ -104,11 +106,10 @@ describe('UserResource', () => {
     });
 
     it('should throw NotFoundError for soft-deleted user', async () => {
-      const user = await userResource.create({
+      const user = await userResource.createFromOAuth({
         name: 'To Delete',
-        type: 'PERSONAL' as UserType,
         email: 'delete@example.com',
-        phone: '+5555555555',
+        googleId: 'google-delete-123',
       });
 
       await userResource.softDelete(user.id);
@@ -119,13 +120,84 @@ describe('UserResource', () => {
     });
   });
 
+  describe('findByGoogleId', () => {
+    it('should find user by Google ID', async () => {
+      const created = await userResource.createFromOAuth({
+        name: 'Emily',
+        email: 'emily@example.com',
+        googleId: 'google-emily-123',
+      });
+
+      const found = await userResource.findByGoogleId('google-emily-123');
+
+      expect(found).not.toBeNull();
+      expect(found!.id).toBe(created.id);
+      expect(found!.email).toBe('emily@example.com');
+    });
+
+    it('should return null when Google ID does not exist', async () => {
+      const found = await userResource.findByGoogleId('nonexistent-google-id');
+
+      expect(found).toBeNull();
+    });
+
+    it('should return null for soft-deleted user', async () => {
+      const user = await userResource.createFromOAuth({
+        name: 'Frank',
+        email: 'frank@example.com',
+        googleId: 'google-frank-123',
+      });
+
+      await userResource.softDelete(user.id);
+
+      const found = await userResource.findByGoogleId('google-frank-123');
+
+      expect(found).toBeNull();
+    });
+  });
+
+  describe('findByEmail', () => {
+    it('should find user by email', async () => {
+      const created = await userResource.createFromOAuth({
+        name: 'Grace',
+        email: 'grace@example.com',
+        googleId: 'google-grace-123',
+      });
+
+      const found = await userResource.findByEmail('grace@example.com');
+
+      expect(found).not.toBeNull();
+      expect(found!.id).toBe(created.id);
+      expect(found!.name).toBe('Grace');
+    });
+
+    it('should return null when email does not exist', async () => {
+      const found = await userResource.findByEmail('nonexistent@example.com');
+
+      expect(found).toBeNull();
+    });
+
+    it('should return null for soft-deleted user', async () => {
+      const user = await userResource.createFromOAuth({
+        name: 'Henry',
+        email: 'henry@example.com',
+        googleId: 'google-henry-123',
+      });
+
+      await userResource.softDelete(user.id);
+
+      const found = await userResource.findByEmail('henry@example.com');
+
+      expect(found).toBeNull();
+    });
+  });
+
   describe('exists', () => {
     it('should return true when user exists', async () => {
-      const user = await userResource.create({
+      const user = await userResource.createFromOAuth({
         name: 'Exists',
-        type: 'PERSONAL' as UserType,
         email: 'exists@example.com',
-        phone: '+6666666666',
+        googleId: 'google-exists-123',
       });
 
       const exists = await userResource.exists(user.id);
@@ -142,11 +214,10 @@ describe('UserResource', () => {
     });
 
     it('should return false for soft-deleted user', async () => {
-      const user = await userResource.create({
+      const user = await userResource.createFromOAuth({
         name: 'Will Be Deleted',
-        type: 'BUSINESS' as UserType,
         email: 'willdelete@example.com',
-        phone: '+7777777777',
+        googleId: 'google-willdelete-123',
       });
 
       await userResource.softDelete(user.id);
@@ -157,13 +228,36 @@ describe('UserResource', () => {
     });
   });
 
+  describe('updateUserType', () => {
+    it('should update user type and sub-type', async () => {
+      const user = await userResource.createFromOAuth({
+        name: 'Ivan',
+        email: 'ivan@example.com',
+        googleId: 'google-ivan-123',
+      });
+
+      const updated = await userResource.updateUserType(user.id, 'HUMAN', 'BUSINESS');
+
+      expect(updated.userType).toBe('HUMAN');
+      expect(updated.subType).toBe('BUSINESS');
+      expect(updated.onboardingCompleted).toBe(true);
+    });
+
+    it('should throw NotFoundError when user does not exist', async () => {
+      const fakeId = '00000000-0000-0000-0000-000000000000';
+
+      await expect(
+        userResource.updateUserType(fakeId, 'HUMAN', 'PERSONAL')
+      ).rejects.toThrow(NotFoundError);
+    });
+  });
+
   describe('softDelete', () => {
     it('should soft delete a user', async () => {
-      const user = await userResource.create({
+      const user = await userResource.createFromOAuth({
         name: 'Deletable',
-        type: 'PERSONAL' as UserType,
         email: 'deletable@example.com',
-        phone: '+8888888888',
+        googleId: 'google-deletable-123',
       });
 
       await userResource.softDelete(user.id);
@@ -181,11 +275,10 @@ describe('UserResource', () => {
     });
 
     it('should throw NotFoundError when deleting already deleted user', async () => {
-      const user = await userResource.create({
+      const user = await userResource.createFromOAuth({
         name: 'Delete Twice',
-        type: 'BUSINESS' as UserType,
         email: 'deletetwice@example.com',
-        phone: '+9999999999',
+        googleId: 'google-deletetwice-123',
       });
 
       await userResource.softDelete(user.id);

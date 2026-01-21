@@ -3,7 +3,7 @@ import type { Logger } from '@harbor/logger';
 import { NotFoundError } from '@harbor/errors';
 import { User } from '../../public/model/user.js';
 import { UserRecord } from '../records/userRecord.js';
-import { UserType } from '../../public/model/userType.js';
+import { UserType, SubType } from '../../public/model/userType.js';
 import { Temporal } from 'temporal-polyfill';
 
 /**
@@ -13,9 +13,12 @@ import { Temporal } from 'temporal-polyfill';
 interface UserRow {
   id: string;
   name: string;
-  type: string;
   email: string;
-  phone: string;
+  phone: string | null;
+  user_type: string;
+  sub_type: string;
+  google_id: string | null;
+  onboarding_completed: boolean;
   created_at: Date;
   updated_at: Date;
   deleted_at: Date | null;
@@ -27,22 +30,58 @@ export class UserResource {
     private readonly logger: Logger
   ) {}
 
-  async create(data: {
+  /**
+   * Create a new user from OAuth login
+   */
+  async createFromOAuth(data: {
     name: string;
-    type: UserType;
     email: string;
-    phone: string;
+    googleId: string;
   }): Promise<User> {
-    this.logger.info({ data }, 'Creating user');
+    this.logger.info({ email: data.email }, 'Creating user from OAuth');
 
     const [userRow] = await this.sql<UserRow[]>`
-      INSERT INTO users (name, type, email, phone)
-      VALUES (${data.name}, ${data.type}, ${data.email}, ${data.phone})
+      INSERT INTO users (name, email, google_id, user_type, sub_type, onboarding_completed)
+      VALUES (${data.name}, ${data.email}, ${data.googleId}, 'UNKNOWN', 'PERSONAL', false)
       RETURNING *
     `;
 
     if (!userRow) {
       throw new Error('Failed to create user');
+    }
+
+    const record = this.rowToRecord(userRow);
+    return this.recordToUser(record);
+  }
+
+  /**
+   * Find user by Google ID
+   */
+  async findByGoogleId(googleId: string): Promise<User | null> {
+    const [userRow] = await this.sql<UserRow[]>`
+      SELECT * FROM users
+      WHERE google_id = ${googleId} AND deleted_at IS NULL
+    `;
+
+    if (!userRow) {
+      return null;
+    }
+
+    const record = this.rowToRecord(userRow);
+    return this.recordToUser(record);
+  }
+
+  /**
+   * Find user by email
+   */
+  async findByEmail(email: string): Promise<User | null> {
+    const [userRow] = await this.sql<UserRow[]>`
+      SELECT * FROM users
+      WHERE email = ${email} AND deleted_at IS NULL
+    `;
+
+    if (!userRow) {
+      return null;
     }
 
     const record = this.rowToRecord(userRow);
@@ -74,6 +113,47 @@ export class UserResource {
     return result?.exists ?? false;
   }
 
+  /**
+   * Update user type and sub-type (onboarding completion)
+   */
+  async updateUserType(
+    id: string,
+    userType: UserType,
+    subType: SubType
+  ): Promise<User> {
+    this.logger.info({ userId: id, userType, subType }, 'Updating user type');
+
+    const now = new Date();
+    const [userRow] = await this.sql<UserRow[]>`
+      UPDATE users
+      SET user_type = ${userType},
+          sub_type = ${subType},
+          onboarding_completed = true,
+          updated_at = ${now}
+      WHERE id = ${id} AND deleted_at IS NULL
+      RETURNING *
+    `;
+
+    if (!userRow) {
+      throw new NotFoundError('User', id);
+    }
+
+    const record = this.rowToRecord(userRow);
+    return this.recordToUser(record);
+  }
+
+  /**
+   * Count agents for a user (used to check if user can switch to AGENT type)
+   */
+  async countAgents(userId: string): Promise<number> {
+    const [result] = await this.sql<{ count: string }[]>`
+      SELECT COUNT(*) as count FROM agents
+      WHERE user_id = ${userId} AND deleted_at IS NULL
+    `;
+
+    return parseInt(result?.count ?? '0', 10);
+  }
+
   async softDelete(id: string): Promise<void> {
     this.logger.info({ userId: id }, 'Soft deleting user');
 
@@ -98,9 +178,12 @@ export class UserResource {
     return {
       id: row.id,
       name: row.name,
-      type: row.type as UserType,
       email: row.email,
       phone: row.phone,
+      userType: row.user_type as UserType,
+      subType: row.sub_type as SubType,
+      googleId: row.google_id,
+      onboardingCompleted: row.onboarding_completed,
       createdAt: Temporal.Instant.fromEpochMilliseconds(row.created_at.getTime()).toZonedDateTimeISO('UTC'),
       updatedAt: Temporal.Instant.fromEpochMilliseconds(row.updated_at.getTime()).toZonedDateTimeISO('UTC'),
       deletedAt: row.deleted_at
@@ -113,9 +196,12 @@ export class UserResource {
     return {
       id: record.id,
       name: record.name,
-      type: record.type,
       email: record.email,
       phone: record.phone,
+      userType: record.userType,
+      subType: record.subType,
+      googleId: record.googleId,
+      onboardingCompleted: record.onboardingCompleted,
     };
   }
 }

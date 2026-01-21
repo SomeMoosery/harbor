@@ -4,7 +4,6 @@ import { UserResource } from '../resources/user.resource.js';
 import { AgentResource } from '../resources/agent.resource.js';
 import { User } from '../../public/model/user.js';
 import { Agent } from '../../public/model/agent.js';
-import { UserType } from '../../public/model/userType.js';
 import { AgentType } from '../../public/model/agentType.js';
 import { WalletClient } from '@harbor/wallet/client';
 
@@ -21,28 +20,6 @@ export class UserManager {
     walletClient?: WalletClient
   ) {
     this.walletClient = walletClient ?? new WalletClient();
-  }
-
-  async createUser(data: {
-    name: string;
-    type: UserType;
-    email: string;
-    phone: string;
-  }): Promise<User> {
-    this.logger.info({ data }, 'Creating user');
-
-    // Email and phone uniqueness is enforced by database constraints
-    // If duplicate, DB will throw an error
-    try {
-      return await this.userResource.create(data);
-    } catch (error) {
-      this.logger.error(`ERROR!!! ${error}`);
-      // Check if it's a unique constraint violation
-      if (error instanceof Error && error.message.includes('unique')) {
-        throw new ConflictError('User with this email or phone already exists');
-      }
-      throw error;
-    }
   }
 
   async getUser(id: string): Promise<User> {
