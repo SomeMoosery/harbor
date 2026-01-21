@@ -1,6 +1,5 @@
 import type { Sql } from 'postgres';
 import type { Logger } from '@harbor/logger';
-import { NotFoundError } from '@harbor/errors';
 import { Session, SessionWithUser } from '../../public/model/session.js';
 import { randomUUID } from 'crypto';
 

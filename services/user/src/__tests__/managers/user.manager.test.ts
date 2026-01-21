@@ -1,7 +1,6 @@
 import { UserManager } from '../../private/managers/user.manager.js';
 import { UserResource } from '../../private/resources/user.resource.js';
 import { AgentResource } from '../../private/resources/agent.resource.js';
-import type { UserType } from '../../public/model/userType.js';
 import type { AgentType } from '../../public/model/agentType.js';
 import { NotFoundError, ConflictError } from '@harbor/errors';
 import { createTestDb, closeTestDb, cleanTestDb } from '../setup/testDatabase.js';
@@ -43,93 +42,17 @@ describe('UserManager', () => {
     await closeTestDb();
   });
 
-  describe('createUser', () => {
-    it('should create a user successfully', async () => {
-      const userData = {
-        name: 'John Doe',
-        type: 'PERSONAL' as UserType,
-        email: 'john@example.com',
-        phone: '+1234567890',
-      };
-
-      const user = await userManager.createUser(userData);
-
-      expect(user).toMatchObject({
-        name: userData.name,
-        type: userData.type,
-        email: userData.email,
-        phone: userData.phone,
-      });
-      expect(user.id).toBeDefined();
-    });
-
-    it('should throw ConflictError when email already exists', async () => {
-      const userData = {
-        name: 'John Doe',
-        type: 'PERSONAL' as UserType,
-        email: 'john@example.com',
-        phone: '+1234567890',
-      };
-
-      await userManager.createUser(userData);
-
-      const duplicateData = {
-        ...userData,
-        phone: '+0987654321', // Different phone
-      };
-
-      await expect(userManager.createUser(duplicateData)).rejects.toThrow(
-        ConflictError
-      );
-    });
-
-    it('should throw ConflictError when phone already exists', async () => {
-      const userData = {
-        name: 'John Doe',
-        type: 'PERSONAL' as UserType,
-        email: 'john@example.com',
-        phone: '+1234567890',
-      };
-
-      await userManager.createUser(userData);
-
-      const duplicateData = {
-        ...userData,
-        email: 'different@example.com', // Different email
-      };
-
-      await expect(userManager.createUser(duplicateData)).rejects.toThrow(
-        ConflictError
-      );
-    });
-
-    it('should create multiple users with unique emails and phones', async () => {
-      const user1 = await userManager.createUser({
-        name: 'User 1',
-        type: 'PERSONAL' as UserType,
-        email: 'user1@example.com',
-        phone: '+1111111111',
-      });
-
-      const user2 = await userManager.createUser({
-        name: 'User 2',
-        type: 'BUSINESS' as UserType,
-        email: 'user2@example.com',
-        phone: '+2222222222',
-      });
-
-      expect(user1.id).not.toEqual(user2.id);
-      expect(user1.email).not.toEqual(user2.email);
-    });
-  });
+  // Helper function to create a test user via OAuth (users are now created via OAuth)
+  async function createTestUser(data: { name: string; email: string; googleId: string }) {
+    return userResource.createFromOAuth(data);
+  }
 
   describe('getUser', () => {
     it('should retrieve a user by id', async () => {
-      const created = await userManager.createUser({
+      const created = await createTestUser({
         name: 'Jane Doe',
-        type: 'BUSINESS' as UserType,
         email: 'jane@example.com',
-        phone: '+1234567890',
+        googleId: 'google-jane-123',
       });
 
       const retrieved = await userManager.getUser(created.id);
@@ -148,11 +71,10 @@ describe('UserManager', () => {
     });
 
     it('should not retrieve soft-deleted users', async () => {
-      const user = await userManager.createUser({
+      const user = await createTestUser({
         name: 'To Delete',
-        type: 'PERSONAL' as UserType,
         email: 'delete@example.com',
-        phone: '+9999999999',
+        googleId: 'google-delete-123',
       });
 
       await userManager.deleteUser(user.id);
@@ -165,11 +87,10 @@ describe('UserManager', () => {
     let userId: string;
 
     beforeEach(async () => {
-      const user = await userManager.createUser({
+      const user = await createTestUser({
         name: 'Agent Owner',
-        type: 'BUSINESS' as UserType,
         email: 'owner@example.com',
-        phone: '+1234567890',
+        googleId: 'google-owner-123',
       });
       userId = user.id;
     });
@@ -243,11 +164,10 @@ describe('UserManager', () => {
     });
 
     it('should allow same agent name for different users', async () => {
-      const user2 = await userManager.createUser({
+      const user2 = await createTestUser({
         name: 'Another Owner',
-        type: 'PERSONAL' as UserType,
         email: 'another@example.com',
-        phone: '+0987654321',
+        googleId: 'google-another-123',
       });
 
       const agentName = 'Common Name';
@@ -275,11 +195,10 @@ describe('UserManager', () => {
     let userId: string;
 
     beforeEach(async () => {
-      const user = await userManager.createUser({
+      const user = await createTestUser({
         name: 'Agent Owner',
-        type: 'BUSINESS' as UserType,
         email: 'owner@example.com',
-        phone: '+1234567890',
+        googleId: 'google-owner-456',
       });
       userId = user.id;
     });
@@ -312,11 +231,10 @@ describe('UserManager', () => {
     let userId: string;
 
     beforeEach(async () => {
-      const user = await userManager.createUser({
+      const user = await createTestUser({
         name: 'Multi Agent Owner',
-        type: 'BUSINESS' as UserType,
         email: 'multi@example.com',
-        phone: '+1234567890',
+        googleId: 'google-multi-123',
       });
       userId = user.id;
     });
@@ -366,11 +284,10 @@ describe('UserManager', () => {
 
       await userManager.deleteUser(userId);
 
-      const newUser = await userManager.createUser({
+      const newUser = await createTestUser({
         name: 'New User',
-        type: 'PERSONAL' as UserType,
         email: 'new@example.com',
-        phone: '+9999999999',
+        googleId: 'google-new-123',
       });
 
       const agents = await userManager.getAgentsForUser(newUser.id);
@@ -383,11 +300,10 @@ describe('UserManager', () => {
     let agentId: string;
 
     beforeEach(async () => {
-      const user = await userManager.createUser({
+      const user = await createTestUser({
         name: 'Owner',
-        type: 'BUSINESS' as UserType,
         email: 'owner@example.com',
-        phone: '+1234567890',
+        googleId: 'google-owner-789',
       });
       userId = user.id;
 
@@ -421,11 +337,10 @@ describe('UserManager', () => {
 
   describe('deleteUser', () => {
     it('should soft delete user and cascade to agents', async () => {
-      const user = await userManager.createUser({
+      const user = await createTestUser({
         name: 'To Delete',
-        type: 'PERSONAL' as UserType,
         email: 'delete@example.com',
-        phone: '+1111111111',
+        googleId: 'google-delete-456',
       });
 
       const agent = await userManager.createAgent({
@@ -444,32 +359,6 @@ describe('UserManager', () => {
       await expect(userManager.getAgent(agent.id)).rejects.toThrow(
         NotFoundError
       );
-    });
-
-    it('should soft delete user but unique constraints still apply', async () => {
-      const email = 'reusable@example.com';
-
-      const user1 = await userManager.createUser({
-        name: 'First User',
-        type: 'PERSONAL' as UserType,
-        email,
-        phone: '+1111111111',
-      });
-
-      await userManager.deleteUser(user1.id);
-
-      // Note: In pg-mem (and some database configurations), unique constraints
-      // still apply to soft-deleted records. In production with real PostgreSQL,
-      // you'd typically use a partial unique index to allow reuse:
-      // CREATE UNIQUE INDEX users_email_unique ON users(email) WHERE deleted_at IS NULL;
-      await expect(
-        userManager.createUser({
-          name: 'Second User',
-          type: 'BUSINESS' as UserType,
-          email,
-          phone: '+2222222222',
-        })
-      ).rejects.toThrow(ConflictError);
     });
   });
 });

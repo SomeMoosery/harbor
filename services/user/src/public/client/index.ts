@@ -1,6 +1,5 @@
 import { z } from 'zod';
 import { getServiceUrl } from '@harbor/config/ports';
-import { CreateUserRequest } from '../request/createUserRequest.js';
 import { CreateAgentRequest } from '../request/createAgentRequest.js';
 import { User } from '../model/user.js';
 import { Agent } from '../model/agent.js';
@@ -9,29 +8,13 @@ import { userSchema, agentSchema } from '../schemas/index.js';
 /**
  * Type-safe HTTP client for User service
  * Other services use this to communicate with the User service
+ * Note: User creation is now handled via OAuth in the Gateway
  */
 export class UserClient {
   private readonly baseUrl: string;
 
   constructor(baseUrl?: string) {
     this.baseUrl = baseUrl ?? getServiceUrl('user');
-  }
-
-  async createUser(data: CreateUserRequest): Promise<User> {
-    const response = await fetch(`${this.baseUrl}/users`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(data),
-    });
-
-    if (!response.ok) {
-      throw new Error(`Failed to create user: ${response.statusText}`);
-    }
-
-    const json = await response.json();
-    return userSchema.parse(json);
   }
 
   async getUser(id: string): Promise<User> {

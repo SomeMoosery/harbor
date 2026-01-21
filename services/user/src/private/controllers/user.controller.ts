@@ -1,29 +1,18 @@
 import type { Context } from 'hono';
 import type { Logger } from '@harbor/logger';
 import { UserManager } from '../managers/user.manager.js';
-import { CreateUserRequest } from '../../public/request/createUserRequest.js';
 import { CreateAgentRequest } from '../../public/request/createAgentRequest.js';
 import { handleError } from '../utils/errorHandler.js';
 
 /**
  * Controller handles HTTP request/response formatting
+ * Note: User creation is now handled via OAuth in SessionController
  */
 export class UserController {
   constructor(
     private readonly manager: UserManager,
     private readonly logger: Logger
   ) {}
-
-  async createUser(c: Context) {
-    try {
-      const body: CreateUserRequest = await c.req.json();
-      const user = await this.manager.createUser(body);
-
-      return c.json(user, 201);
-    } catch (error) {
-      return handleError(c, error, this.logger);
-    }
-  }
 
   async getUser(c: Context) {
     try {

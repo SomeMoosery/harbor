@@ -1,5 +1,4 @@
 import { z } from 'zod';
-import { userTypeValues, subTypeValues } from '../../public/model/userType.js';
 import { agentTypeValues } from '../../public/model/agentType.js';
 
 export const createAgentSchema = z.object({

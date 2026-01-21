@@ -1,7 +1,6 @@
 import { AgentResource } from '../../private/resources/agent.resource.js';
 import { UserResource } from '../../private/resources/user.resource.js';
 import type { AgentType } from '../../public/model/agentType.js';
-import type { UserType } from '../../public/model/userType.js';
 import { NotFoundError } from '@harbor/errors';
 import { createTestDb, closeTestDb, cleanTestDb } from '../setup/testDatabase.js';
 import { createMockLogger } from '../setup/mockLogger.js';
@@ -24,12 +23,11 @@ describe('AgentResource', () => {
     agentResource = new AgentResource(sql, mockLogger);
     userResource = new UserResource(sql, mockLogger);
 
-    // Create a test user for agent relationships
-    const user = await userResource.create({
+    // Create a test user for agent relationships (users are now created via OAuth)
+    const user = await userResource.createFromOAuth({
       name: 'Test User',
-      type: 'BUSINESS' as UserType,
       email: 'test@example.com',
-      phone: '+1234567890',
+      googleId: 'google-test-123',
     });
     testUserId = user.id;
   });
@@ -178,11 +176,10 @@ describe('AgentResource', () => {
     });
 
     it('should only return agents for specified user', async () => {
-      const user2 = await userResource.create({
+      const user2 = await userResource.createFromOAuth({
         name: 'Another User',
-        type: 'PERSONAL' as UserType,
         email: 'another@example.com',
-        phone: '+0987654321',
+        googleId: 'google-another-123',
       });
 
       await agentResource.create({
@@ -275,11 +272,10 @@ describe('AgentResource', () => {
     });
 
     it('should only delete agents for specified user', async () => {
-      const user2 = await userResource.create({
+      const user2 = await userResource.createFromOAuth({
         name: 'User 2',
-        type: 'PERSONAL' as UserType,
         email: 'user2@example.com',
-        phone: '+2222222222',
+        googleId: 'google-user2-123',
       });
 
       const agent1 = await agentResource.create({
