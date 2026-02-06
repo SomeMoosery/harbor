@@ -17,7 +17,8 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "ws": "^8.18.0"
+    "ws": "^8.18.0",
+    "@harbor/verification": "workspace:*"
   },
   "devDependencies": {
     "@types/ws": "^8.5.13",

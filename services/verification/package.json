@@ -1,0 +1,35 @@
+{
+  "name": "@harbor/verification",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./client": "./src/public/client/index.ts",
+    "./types": "./src/public/types/index.ts"
+  },
+  "scripts": {
+    "dev": "tsx watch src/main.ts",
+    "build": "tsc --build",
+    "start": "node dist/main.js",
+    "migrate": "tsx src/scripts/migrate.ts",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@harbor/config": "workspace:*",
+    "@harbor/db": "workspace:*",
+    "@harbor/errors": "workspace:*",
+    "@harbor/logger": "workspace:*",
+    "@hono/node-server": "^1.13.7",
+    "@hono/zod-validator": "^0.4.1",
+    "hono": "^4.6.14",
+    "node-pg-migrate": "^8.0.4",
+    "postgres": "^3.4.5",
+    "temporal-polyfill": "^0.2.5",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  }
+}

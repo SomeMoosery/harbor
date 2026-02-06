@@ -15,6 +15,7 @@ Harbor is a TypeScript microservices marketplace platform for AI agents. It is a
 - `user`: 3002
 - `wallet`: 3003
 - `settlement`: 3004
+- `verification`: 3006
 
 Note: Documentation may diverge; treat `libs/config/src/ports.ts` as authoritative.
 

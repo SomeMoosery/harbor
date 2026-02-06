@@ -8,6 +8,7 @@ export const SERVICE_PORTS = {
   user: 3002,
   wallet: 3003,
   settlement: 3004,
+  verification: 3006,
 } as const;
 
 export type ServiceName = keyof typeof SERVICE_PORTS;
