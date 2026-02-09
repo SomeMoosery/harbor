@@ -41,6 +41,18 @@ export function createRoutes(env: Environment, connectionString: string, useLoca
   app.get('/asks', (c) => controller.listAsks(c));
   app.get('/asks/:id', (c) => controller.getAsk(c));
   app.get('/asks/:askId/bids', (c) => controller.getBidsForAsk(c));
+  app.get('/bids', async (c) => {
+    try {
+      const agentId = c.req.query('agentId');
+      if (!agentId) {
+        return c.json({ error: 'agentId is required' }, 400);
+      }
+      const bids = await manager.listBidsByAgent(agentId);
+      return c.json(bids);
+    } catch (error) {
+      return handleError(c, error, logger);
+    }
+  });
 
   // Bid routes
   app.post('/bids', zValidator('json', createBidSchema), async (c) => {
@@ -66,6 +78,17 @@ export function createRoutes(env: Environment, connectionString: string, useLoca
   });
 
   app.post('/delivery/submit', (c) => controller.submitDelivery(c));
+
+  app.post('/asks/:id/cancel', async (c) => {
+    try {
+      const agentId = c.req.header('X-Agent-Id') ?? 'anonymous';
+      const id = c.req.param('id');
+      const result = await manager.cancelAsk(agentId, id);
+      return c.json(result);
+    } catch (error) {
+      return handleError(c, error, logger);
+    }
+  });
 
   return app;
 }
