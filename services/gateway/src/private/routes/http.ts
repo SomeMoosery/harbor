@@ -69,6 +69,21 @@ export function createHttpRoutes(
   const apiKeyAuth = createAuthMiddleware(config, logger);
   const sessionAuth = createSessionMiddleware(logger, false);
 
+  const ensureAgentOwnership = async (userId: string, agentId: string) => {
+    const userUrl = `http://localhost:${SERVICE_PORTS.user}`;
+    const response = await fetch(`${userUrl}/users/${userId}/agents`, {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' },
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch agents');
+    }
+
+    const agents = await response.json();
+    return Array.isArray(agents) && agents.some((agent) => agent.id === agentId);
+  };
+
   // Health check (no auth required)
   app.get('/health', (c) => c.json({ status: 'ok', service: 'gateway' }));
 
@@ -266,6 +281,207 @@ export function createHttpRoutes(
     });
 
     return c.json(await response.json(), response.status as any);
+  });
+
+  // ===================
+  // Dashboard Routes (session auth)
+  // ===================
+
+  app.get('/dashboard/asks', sessionAuth, async (c) => {
+    const session = c.get('session');
+    const agentId = c.req.query('agentId');
+
+    if (!agentId) {
+      return c.json({ error: 'agentId is required' }, 400 as any);
+    }
+
+    try {
+      const owned = await ensureAgentOwnership(session.userId, agentId);
+      if (!owned) {
+        return c.json({ error: 'Forbidden' }, 403 as any);
+      }
+
+      const tenderingUrl = `http://localhost:${SERVICE_PORTS.tendering}`;
+      const response = await fetch(`${tenderingUrl}/asks?createdBy=${agentId}`, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      return c.json(await response.json(), response.status as any);
+    } catch (error) {
+      logger.error({ error }, 'Failed to fetch asks for dashboard');
+      return c.json({ error: 'Failed to fetch asks' }, 500 as any);
+    }
+  });
+
+  app.get('/dashboard/asks/:askId/bids', sessionAuth, async (c) => {
+    const askId = c.req.param('askId');
+
+    try {
+      const tenderingUrl = `http://localhost:${SERVICE_PORTS.tendering}`;
+      const response = await fetch(`${tenderingUrl}/asks/${askId}/bids`, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      return c.json(await response.json(), response.status as any);
+    } catch (error) {
+      logger.error({ error }, 'Failed to fetch bids for ask');
+      return c.json({ error: 'Failed to fetch bids' }, 500 as any);
+    }
+  });
+
+  app.get('/dashboard/bids', sessionAuth, async (c) => {
+    const session = c.get('session');
+    const agentId = c.req.query('agentId');
+
+    if (!agentId) {
+      return c.json({ error: 'agentId is required' }, 400 as any);
+    }
+
+    try {
+      const owned = await ensureAgentOwnership(session.userId, agentId);
+      if (!owned) {
+        return c.json({ error: 'Forbidden' }, 403 as any);
+      }
+
+      const tenderingUrl = `http://localhost:${SERVICE_PORTS.tendering}`;
+      const response = await fetch(`${tenderingUrl}/bids?agentId=${agentId}`, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      return c.json(await response.json(), response.status as any);
+    } catch (error) {
+      logger.error({ error }, 'Failed to fetch bids for dashboard');
+      return c.json({ error: 'Failed to fetch bids' }, 500 as any);
+    }
+  });
+
+  app.post('/dashboard/asks', sessionAuth, async (c) => {
+    const session = c.get('session');
+    const body = await c.req.json();
+    const { agentId, ...askData } = body ?? {};
+
+    if (!agentId) {
+      return c.json({ error: 'agentId is required' }, 400 as any);
+    }
+
+    try {
+      const owned = await ensureAgentOwnership(session.userId, agentId);
+      if (!owned) {
+        return c.json({ error: 'Forbidden' }, 403 as any);
+      }
+
+      const tenderingUrl = `http://localhost:${SERVICE_PORTS.tendering}`;
+      const response = await fetch(`${tenderingUrl}/asks`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Agent-Id': agentId,
+        },
+        body: JSON.stringify(askData),
+      });
+
+      return c.json(await response.json(), response.status as any);
+    } catch (error) {
+      logger.error({ error }, 'Failed to create ask');
+      return c.json({ error: 'Failed to create ask' }, 500 as any);
+    }
+  });
+
+  app.post('/dashboard/bids/accept', sessionAuth, async (c) => {
+    const session = c.get('session');
+    const body = await c.req.json();
+    const { agentId, bidId } = body ?? {};
+
+    if (!agentId || !bidId) {
+      return c.json({ error: 'agentId and bidId are required' }, 400 as any);
+    }
+
+    try {
+      const owned = await ensureAgentOwnership(session.userId, agentId);
+      if (!owned) {
+        return c.json({ error: 'Forbidden' }, 403 as any);
+      }
+
+      const tenderingUrl = `http://localhost:${SERVICE_PORTS.tendering}`;
+      const response = await fetch(`${tenderingUrl}/bids/accept`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Agent-Id': agentId,
+        },
+        body: JSON.stringify({ bidId }),
+      });
+
+      return c.json(await response.json(), response.status as any);
+    } catch (error) {
+      logger.error({ error }, 'Failed to accept bid');
+      return c.json({ error: 'Failed to accept bid' }, 500 as any);
+    }
+  });
+
+  app.post('/dashboard/delivery', sessionAuth, async (c) => {
+    const body = await c.req.json();
+    const { agentId, bidId, deliveryProof } = body ?? {};
+
+    if (!agentId || !bidId) {
+      return c.json({ error: 'agentId and bidId are required' }, 400 as any);
+    }
+
+    try {
+      const owned = await ensureAgentOwnership(session.userId, agentId);
+      if (!owned) {
+        return c.json({ error: 'Forbidden' }, 403 as any);
+      }
+
+      const tenderingUrl = `http://localhost:${SERVICE_PORTS.tendering}`;
+      const response = await fetch(`${tenderingUrl}/delivery/submit`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Agent-Id': agentId,
+        },
+        body: JSON.stringify({ bidId, deliveryProof }),
+      });
+
+      return c.json(await response.json(), response.status as any);
+    } catch (error) {
+      logger.error({ error }, 'Failed to submit delivery');
+      return c.json({ error: 'Failed to submit delivery' }, 500 as any);
+    }
+  });
+
+  app.post('/dashboard/asks/:id/cancel', sessionAuth, async (c) => {
+    const id = c.req.param('id');
+    const body = await c.req.json();
+    const { agentId } = body ?? {};
+
+    if (!agentId) {
+      return c.json({ error: 'agentId is required' }, 400 as any);
+    }
+
+    try {
+      const owned = await ensureAgentOwnership(session.userId, agentId);
+      if (!owned) {
+        return c.json({ error: 'Forbidden' }, 403 as any);
+      }
+
+      const tenderingUrl = `http://localhost:${SERVICE_PORTS.tendering}`;
+      const response = await fetch(`${tenderingUrl}/asks/${id}/cancel`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Agent-Id': agentId,
+        },
+      });
+
+      return c.json(await response.json(), response.status as any);
+    } catch (error) {
+      logger.error({ error }, 'Failed to cancel ask');
+      return c.json({ error: 'Failed to cancel ask' }, 500 as any);
+    }
   });
 
   // ===================

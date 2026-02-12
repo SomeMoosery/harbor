@@ -122,6 +122,10 @@ export class TenderingManager {
     return this.bidResource.findByAskId(askId);
   }
 
+  async listBidsByAgent(agentId: string): Promise<Bid[]> {
+    return this.bidResource.findByAgentId(agentId);
+  }
+
   async acceptBid(agentId: string, bidId: string): Promise<{ bid: Bid; ask: Ask }> {
     this.logger.info({ agentId, bidId }, 'Accepting bid');
 
@@ -251,5 +255,24 @@ export class TenderingManager {
       bid,
       ask: updatedAsk,
     };
+  }
+
+  async cancelAsk(agentId: string, askId: string): Promise<Ask> {
+    this.logger.info({ agentId, askId }, 'Cancelling ask');
+
+    const ask = await this.askResource.findById(askId);
+
+    if (ask.createdBy !== agentId) {
+      throw new ForbiddenError('Only ask creator can cancel');
+    }
+
+    if (ask.status !== 'OPEN') {
+      throw new ConflictError('Only open asks can be cancelled');
+    }
+
+    // Reject any pending bids for this ask
+    await this.bidResource.rejectOtherBids(askId, '');
+
+    return this.askResource.updateStatus(askId, 'CANCELLED');
   }
 }
